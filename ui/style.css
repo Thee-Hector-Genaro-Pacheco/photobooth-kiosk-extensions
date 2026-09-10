@@ -1,0 +1,368 @@
+:root {
+  /* Dark Charcoal / Slate Gallery Palette */
+  --booth-bg: #0d141d;
+  --booth-card-bg: #16202c;
+  --booth-card-border: rgba(255, 255, 255, 0.1);
+  --booth-gold: #c5a059;
+  --booth-gold-accent: #d4af37;
+  --booth-text-main: #f8fafc;
+  --booth-text-muted: #94a3b8;
+  --booth-badge-bg: #0b1118;
+  --booth-radius: 12px;
+  --preview-ratio: 1800 / 1560;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  min-height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: var(--booth-bg);
+  color: var(--booth-text-main);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Centered Responsive Page Container */
+.gallery-container {
+  width: min(100% - clamp(24px, 5vw, 64px), 1440px);
+  margin-inline: auto;
+  padding-top: clamp(14px, 2.5vw, 24px);
+  padding-bottom: clamp(24px, 4vw, 48px);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* Compact Collection Header (Desktop / Tablet: One Row) */
+.collection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 0 18px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: clamp(24px, 3.5vw, 36px);
+  flex-shrink: 0;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  width: 26px;
+  height: 26px;
+  stroke: var(--booth-gold-accent);
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  font-weight: 700;
+  color: var(--booth-text-main);
+  letter-spacing: -0.2px;
+  margin: 0;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+}
+
+.header-tagline {
+  font-size: clamp(0.7rem, 1vw, 0.8rem);
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  color: var(--booth-text-muted);
+  text-transform: uppercase;
+}
+
+/* Theme Gallery Grid (CSS Grid with Full Natural Document Flow) */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: clamp(20px, 2.8vw, 32px);
+  row-gap: clamp(28px, 4vw, 42px);
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  flex: 1;
+}
+
+/* Theme Card Item (Transparent, Normal-Flow Grid Item) */
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+/* Shared Landscape Preview Wrapper (Controls Uniform Geometry) */
+.preview-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--preview-ratio);
+  border-radius: var(--booth-radius);
+  overflow: hidden;
+  background: var(--booth-card-bg);
+  border: 1px solid var(--booth-card-border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.12s ease;
+}
+
+.theme-card:active .preview-wrapper {
+  opacity: 0.92;
+}
+
+.preview-wrapper img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* No Border Preview Styling (Identical Outer Dimensions) */
+.plain-photo-sample {
+  width: 100%;
+  height: 100%;
+  border: 2px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.plain-photo-sample span {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--booth-text-muted);
+  letter-spacing: 0.4px;
+}
+
+/* Theme Label (Directly Underneath Preview in Normal Flow) */
+.theme-name {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  font-size: clamp(0.92rem, 1.2vw, 1.05rem);
+  font-weight: 600;
+  color: var(--booth-text-main);
+  letter-spacing: 0.2px;
+  text-align: center;
+  line-height: 1.3;
+  pointer-events: none;
+}
+
+/* Selected State: Gold Outline & Accent Glow (NO scaling, NO dimension change) */
+.theme-card.active-theme .preview-wrapper {
+  border-color: var(--booth-gold-accent);
+  box-shadow: 0 0 0 2px var(--booth-gold-accent), 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+/* Compact CURRENT THEME Overlay Badge (Inside Preview Wrapper) */
+.preview-wrapper .card-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-radius: 999px;
+  background: var(--booth-badge-bg);
+  color: var(--booth-text-main);
+  border: 1.5px solid var(--booth-gold-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 5;
+}
+
+.theme-card.active-theme .card-badge {
+  opacity: 1;
+}
+
+/* Status Bar & Footer (Compact, Non-Sticky, After Gallery) */
+.collection-footer {
+  margin-top: clamp(28px, 4.5vw, 44px);
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.status-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(22, 32, 44, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 6px 18px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.status-pill {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+
+.preview-pill {
+  background: var(--booth-gold-accent);
+  color: #141003;
+}
+
+.status-text {
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Responsive Breakpoints
+   - Large (>= 1100px): 3 columns
+   - Medium (700px–1099px): 2 columns
+   - Small (< 700px): 1 column (centered, bounded max-width)
+   ========================================================================== */
+
+@media (max-width: 1099px) {
+  .theme-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: clamp(16px, 2.5vw, 24px);
+    row-gap: clamp(24px, 3.5vw, 36px);
+  }
+}
+
+@media (max-width: 699px) {
+  .collection-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .header-brand {
+    justify-content: center;
+  }
+
+  .theme-grid {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 480px;
+    margin-inline: auto;
+    row-gap: 24px;
+  }
+}
+
+/* ==========================================================================
+   Photobooth-App Action Button Styling (Choose Theme)
+   Preserved for kiosk injection via ui/kiosk-theme-button.js
+   ========================================================================== */
+
+.booth-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  background-color: #3b5e82;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  color: #ffffff;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+  padding: 8px 6px;
+  outline: none;
+}
+
+.booth-action-btn:hover {
+  background-color: #446d96;
+}
+
+.booth-action-btn:active {
+  transform: scale(0.95);
+  background-color: #325070;
+}
+
+.booth-action-btn .btn-icon {
+  width: 36px;
+  height: 36px;
+  stroke: #ffffff;
+  stroke-width: 2;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.booth-action-btn .btn-label {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #ffffff;
+  text-align: center;
+  line-height: 1.15;
+  white-space: normal;
+  letter-spacing: -0.1px;
+}
+
+.btn-theme {
+  position: relative;
+}
+
+.btn-theme:focus-visible {
+  box-shadow: 0 0 0 2px var(--booth-gold-accent), 0 4px 14px rgba(0, 0, 0, 0.22);
+}

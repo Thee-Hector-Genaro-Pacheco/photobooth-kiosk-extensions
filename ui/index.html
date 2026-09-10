@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Photo Booth Frame Collection</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="gallery-container">
+    <header class="collection-header">
+      <div class="header-brand">
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+        <h1 class="header-title">Photo Booth Frame Collection</h1>
+      </div>
+      <div class="header-meta">
+        <span class="header-tagline">SEASONAL &bull; EVENT &bull; CELEBRATION &bull; ANY OCCASION</span>
+      </div>
+    </header>
+
+    <main class="theme-grid" id="themeGrid">
+      <!-- Modern Gold -->
+      <button type="button" class="theme-card" id="card-modern-gold" data-theme="modern-gold">
+        <div class="preview-wrapper">
+          <div class="card-badge" id="badge-modern-gold">Current Theme</div>
+          <img src="assets/themes/modern-gold-frame-v2.png" alt="Modern Gold">
+        </div>
+        <span class="theme-name">Modern Gold</span>
+      </button>
+
+      <!-- Tropical -->
+      <button type="button" class="theme-card" id="card-tropical" data-theme="tropical">
+        <div class="preview-wrapper">
+          <div class="card-badge" id="badge-tropical">Current Theme</div>
+          <img src="assets/themes/tropical-frame-v1.png" alt="Tropical">
+        </div>
+        <span class="theme-name">Tropical</span>
+      </button>
+
+      <!-- Black & Gold -->
+      <button type="button" class="theme-card" id="card-black-gold" data-theme="black-gold">
+        <div class="preview-wrapper">
+          <div class="card-badge" id="badge-black-gold">Current Theme</div>
+          <img src="assets/themes/black-and-gold-frame-v1.png" alt="Black & Gold">
+        </div>
+        <span class="theme-name">Black & Gold</span>
+      </button>
+
+      <!-- Elegant Floral -->
+      <button type="button" class="theme-card" id="card-floral" data-theme="floral">
+        <div class="preview-wrapper">
+          <div class="card-badge" id="badge-floral">Current Theme</div>
+          <img src="assets/themes/floral-frame-v1.png" alt="Elegant Floral">
+        </div>
+        <span class="theme-name">Elegant Floral</span>
+      </button>
+
+      <!-- Celebration -->
+      <button type="button" class="theme-card" id="card-celebration" data-theme="celebration">
+        <div class="preview-wrapper">
+          <div class="card-badge" id="badge-celebration">Current Theme</div>
+          <img src="assets/themes/confetti-frame-v1.png" alt="Celebration">
+        </div>
+        <span class="theme-name">Celebration</span>
+      </button>
+
+      <!-- Halloween -->
+      <button type="button" class="theme-card" id="card-halloween" data-theme="halloween">
+        <div class="preview-wrapper">
+          <div class="card-badge" id="badge-halloween">Current Theme</div>
+          <img src="assets/themes/halloween-frame-v1.png" alt="Halloween">
+        </div>
+        <span class="theme-name">Halloween</span>
+      </button>
+
+      <!-- Thanksgiving -->
+      <button type="button" class="theme-card" id="card-thanksgiving" data-theme="thanksgiving">
+        <div class="preview-wrapper">
+          <div class="card-badge" id="badge-thanksgiving">Current Theme</div>
+          <img src="assets/themes/thanksgiving-frame-v1.png" alt="Thanksgiving">
+        </div>
+        <span class="theme-name">Thanksgiving</span>
+      </button>
+
+      <!-- Christmas -->
+      <button type="button" class="theme-card" id="card-christmas" data-theme="christmas">
+        <div class="preview-wrapper">
+          <div class="card-badge" id="badge-christmas">Current Theme</div>
+          <img src="assets/themes/christmas-frame-v1.png" alt="Christmas">
+        </div>
+        <span class="theme-name">Christmas</span>
+      </button>
+
+      <!-- New Year -->
+      <button type="button" class="theme-card" id="card-new-year" data-theme="new-year">
+        <div class="preview-wrapper">
+          <div class="card-badge" id="badge-new-year">Current Theme</div>
+          <img src="assets/themes/new-year-frame-v1.png" alt="New Year">
+        </div>
+        <span class="theme-name">New Year</span>
+      </button>
+
+      <!-- No Border -->
+      <button type="button" class="theme-card" id="card-none" data-theme="none">
+        <div class="preview-wrapper">
+          <div class="card-badge" id="badge-none">Current Theme</div>
+          <div class="plain-photo-sample">
+            <span>No Border</span>
+          </div>
+        </div>
+        <span class="theme-name">No Border</span>
+      </button>
+    </main>
+
+    <footer class="collection-footer">
+      <div class="status-bar">
+        <span class="status-pill preview-pill">Preview Mode</span>
+        <span class="status-text" id="statusMessage">Loading current theme...</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
