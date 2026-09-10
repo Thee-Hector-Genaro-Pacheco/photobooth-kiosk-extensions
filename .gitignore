@@ -1,0 +1,10 @@
+.DS_Store
+.env
+.env.*
+*.sqlite
+*.db
+*.log
+secrets/
+media/
+private/
+config/config.json
