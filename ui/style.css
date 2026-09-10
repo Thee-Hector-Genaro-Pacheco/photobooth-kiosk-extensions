@@ -87,6 +87,8 @@ body {
 .header-meta {
   display: flex;
   align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .header-tagline {
@@ -95,6 +97,42 @@ body {
   letter-spacing: 1.4px;
   color: var(--booth-text-muted);
   text-transform: uppercase;
+}
+
+/* Compact Back to Photo Booth Fallback Control */
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--booth-text-main);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-back:hover,
+.btn-back:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--booth-gold-accent);
+}
+
+.btn-back:active {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(0.97);
+}
+
+.btn-back-icon {
+  width: 14px;
+  height: 14px;
+  stroke: var(--booth-gold-accent);
+  flex-shrink: 0;
 }
 
 /* Theme Gallery Grid (CSS Grid with Full Natural Document Flow) */
@@ -292,6 +330,11 @@ body {
 
   .header-brand {
     justify-content: center;
+  }
+
+  .header-meta {
+    justify-content: center;
+    gap: 10px;
   }
 
   .theme-grid {

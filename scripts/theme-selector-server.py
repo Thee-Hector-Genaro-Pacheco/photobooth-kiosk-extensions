@@ -32,17 +32,19 @@ try:
     apply_theme_module = __import__("apply-theme")
     THEME_CONFIGS = apply_theme_module.THEME_CONFIGS
     build_config_patch = apply_theme_module.build_config_patch
+    apply_theme_live = getattr(apply_theme_module, "apply_theme_live", None)
 except Exception as err:
     sys.stderr.write(f"Error importing apply-theme.py: {err}\n")
     sys.exit(1)
 
 DEFAULT_PORT = 8080
-DEFAULT_BASE_URL = "http://192.168.2.3:8000"
+DEFAULT_BASE_URL = "http://localhost:8000"
 
 # In-memory selection state for preview mode
 _state = {
     "current_theme": "modern-gold",
     "base_url": DEFAULT_BASE_URL,
+    "apply_live": False,
 }
 
 
@@ -114,7 +116,8 @@ class ThemeSelectorHandler(http.server.SimpleHTTPRequestHandler):
             _state["current_theme"] = active_theme
             self._send_json_response({
                 "theme": active_theme,
-                "preview_mode": True,
+                "preview_mode": not _state.get("apply_live", False),
+                "target_url": _state["base_url"],
             })
             return
 
@@ -144,7 +147,36 @@ class ThemeSelectorHandler(http.server.SimpleHTTPRequestHandler):
             patch = build_config_patch(theme_id)
             _state["current_theme"] = theme_id
 
-            # Safe preview response (no live PATCH request is sent to Pi)
+            # Live Apply Mode: Safely apply theme and return redirect URL only after backend confirms success
+            if _state.get("apply_live", False):
+                if apply_theme_live is None:
+                    self._send_json_response({
+                        "status": "error",
+                        "error": "apply_theme_live function unavailable",
+                        "preview_mode": False,
+                    }, 500)
+                    return
+
+                try:
+                    apply_theme_live(theme_id, _state["base_url"])
+                    self._send_json_response({
+                        "status": "success",
+                        "theme": theme_id,
+                        "patch": patch,
+                        "preview_mode": False,
+                        "redirect_url": f"{_state['base_url'].rstrip('/')}/",
+                        "message": f"Theme '{theme_id}' applied successfully.",
+                    })
+                except (Exception, SystemExit) as err:
+                    self._send_json_response({
+                        "status": "error",
+                        "theme": theme_id,
+                        "preview_mode": False,
+                        "error": f"Failed to apply theme live: {err}",
+                    }, 500)
+                return
+
+            # Safe preview response (no live changes applied, zero redirect)
             self._send_json_response({
                 "status": "success",
                 "theme": theme_id,
@@ -157,16 +189,18 @@ class ThemeSelectorHandler(http.server.SimpleHTTPRequestHandler):
         self._send_json_response({"error": "Not Found"}, 404)
 
 
-def run_server(port: int = DEFAULT_PORT, base_url: str = DEFAULT_BASE_URL) -> None:
+def run_server(port: int = DEFAULT_PORT, base_url: str = DEFAULT_BASE_URL, apply_live: bool = False) -> None:
     _state["base_url"] = base_url
+    _state["apply_live"] = apply_live
     server_address = ("", port)
     httpd = http.server.HTTPServer(server_address, ThemeSelectorHandler)
 
+    mode_str = "Live Apply Mode (Live PATCH to booth enabled)" if apply_live else "Preview Mode (Safe, no live PATCH requests)"
     print(f"=====================================================")
     print(f"  Photobooth Theme Selector UI Server Running")
     print(f"  URL: http://localhost:{port}/")
     print(f"  Target Kiosk Base URL: {base_url}")
-    print(f"  Mode: Preview Mode (Safe, no live PATCH requests)")
+    print(f"  Mode: {mode_str}")
     print(f"=====================================================")
     print(f"Press Ctrl+C to stop.")
 
@@ -189,12 +223,17 @@ def main() -> None:
     )
     parser.add_argument(
         "--url",
-        default=DEFAULT_BASE_URL,
-        help=f"Base URL of target Photobooth-App (default: {DEFAULT_BASE_URL})",
+        default="http://localhost:8000",
+        help="Base URL of target Photobooth-App (default: http://localhost:8000)",
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply themes live to Photobooth-App instance instead of preview mode",
     )
 
     args = parser.parse_args()
-    run_server(port=args.port, base_url=args.url)
+    run_server(port=args.port, base_url=args.url, apply_live=args.apply)
 
 
 if __name__ == "__main__":

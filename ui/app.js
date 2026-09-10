@@ -2,6 +2,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const cards = document.querySelectorAll(".theme-card");
   const statusMessage = document.getElementById("statusMessage");
+  const btnBackToBooth = document.getElementById("btnBackToBooth");
 
   let currentSelectedTheme = null;
   let isUpdating = false;
@@ -42,6 +43,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       const activeTheme = data.theme || "modern-gold";
       setActiveThemeUI(activeTheme);
+
+      // Dynamically update Back to Photo Booth destination if provided
+      if (data.target_url && btnBackToBooth) {
+        btnBackToBooth.href = `${data.target_url.replace(/\/+$/, "")}/`;
+      }
     } catch (err) {
       console.warn("Could not fetch current theme from server, defaulting to Modern Gold:", err);
       setActiveThemeUI("modern-gold");
@@ -54,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     isUpdating = true;
     const displayName = THEME_NAMES[themeName] || themeName;
-    statusMessage.textContent = `Selecting ${displayName}...`;
+    statusMessage.textContent = `Applying ${displayName}...`;
 
     try {
       const response = await fetch("/api/select-theme", {
@@ -68,13 +74,32 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const result = await response.json();
+
+      if (result.status !== "success") {
+        throw new Error(result.error || "Theme application failed");
+      }
+
       setActiveThemeUI(themeName);
-      statusMessage.textContent = `Selected: ${displayName} (Preview Mode)`;
+
+      // In preview mode: update UI only, never redirect
+      if (result.preview_mode) {
+        statusMessage.textContent = `Selected: ${displayName} (Preview Mode)`;
+        return;
+      }
+
+      // Live mode confirmed by backend: brief visual confirmation, then auto-return
+      if (result.redirect_url) {
+        statusMessage.textContent = `Applied ${displayName}! Returning to booth...`;
+        setTimeout(() => {
+          window.location.href = result.redirect_url;
+        }, 650);
+      } else {
+        statusMessage.textContent = `Applied: ${displayName}`;
+      }
     } catch (err) {
       console.error("Theme selection failed:", err);
-      // Still update UI in client-side preview mode if server is in preview mode
-      setActiveThemeUI(themeName);
-      statusMessage.textContent = `Selected: ${displayName} (Local Preview)`;
+      // DO NOT REDIRECT on failure - keep user on selector with visible status
+      statusMessage.textContent = `Failed to apply ${displayName}. Please try again.`;
     } finally {
       isUpdating = false;
     }
