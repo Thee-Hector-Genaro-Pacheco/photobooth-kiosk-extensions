@@ -1,53 +1,113 @@
 /**
  * ui/kiosk-theme-button.js - Photobooth-App Kiosk "Choose Theme" Extension Button Injector
  *
- * Adds the "Choose Theme" entry point directly into the Photobooth-App kiosk interface
- * next to the existing Image and Collage buttons, without modifying core application packages.
+ * Injects a native-styled "Choose Theme" action button directly into the real
+ * Photobooth-App idle front-page (.action-buttons.q-gutter-md) without modifying
+ * the compiled Vue bundle or core packages.
  */
 (function () {
   const THEME_SELECTOR_URL = window.THEME_SELECTOR_URL || 'http://localhost:8080/';
 
+  /**
+   * Find the authentic idle front-page action container.
+   *
+   * Signature of real Photobooth-App FrontpageTriggerButtons:
+   * - Has class "action-buttons"
+   * - Has Quasar row spacing class "q-gutter-md" and/or "row"
+   * - Is NOT inside #itemapproval-dialog or any .q-dialog modal
+   * - Contains native action buttons (.action-button or .action-button-image/collage/gallery)
+   */
+  function findFrontpageActionContainer() {
+    const containers = document.querySelectorAll('.action-buttons');
+    for (const container of containers) {
+      // 1. Exclude approval dialogs, modal popups, and column dialog actions
+      if (
+        container.closest('#itemapproval-dialog') ||
+        container.closest('.q-dialog') ||
+        container.classList.contains('col')
+      ) {
+        continue;
+      }
+
+      // 2. Real front-page container signature: "row q-gutter-md action-buttons"
+      const hasFrontpageLayout =
+        container.classList.contains('q-gutter-md') ||
+        container.classList.contains('row');
+
+      // 3. Must contain at least one native action button (Image, Collage, or Gallery)
+      const hasNativeButtons =
+        container.querySelector('.action-button, [class*="action-button-"]') ||
+        container.children.length > 0;
+
+      if (hasFrontpageLayout && hasNativeButtons) {
+        return container;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Construct the "Choose Theme" button matching Photobooth-App's native Quasar button structure.
+   */
   function createThemeButton() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'extension-theme-btn-wrapper';
+
     const btn = document.createElement('a');
     btn.id = 'btnChooseTheme';
     btn.href = THEME_SELECTOR_URL;
-    btn.className = 'booth-action-btn btn-theme';
+    btn.className =
+      'q-btn q-btn-item non-selectable no-outline q-btn--standard q-btn--rounded q-btn--actionable action-button col-auto glass-effect bg-primary text-white action-button-theme';
     btn.title = 'Choose Theme';
     btn.setAttribute('aria-label', 'Choose Theme');
+    btn.setAttribute('role', 'button');
+    btn.tabIndex = 0;
+    btn.style.textDecoration = 'none';
+    btn.style.display = 'inline-flex';
+    btn.style.flexDirection = 'column';
+    btn.style.alignItems = 'center';
+    btn.style.justifyContent = 'center';
+
     btn.innerHTML = `
-      <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="3"/>
-        <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-        <polyline points="21 15 16 10 5 21"/>
-      </svg>
-      <span class="btn-label">Choose Theme</span>
+      <span class="q-focus-helper"></span>
+      <span class="q-btn__content text-center col items-center q-anchor--skip justify-center column">
+        <i class="q-icon notranslate material-symbols-outlined" aria-hidden="true" role="presentation">palette</i>
+        <div class="gt-sm" style="white-space: nowrap;">Choose Theme</div>
+      </span>
     `;
-    return btn;
+
+    wrapper.appendChild(btn);
+    return wrapper;
   }
 
+  /**
+   * Idempotently inject the button into the front-page action container.
+   */
   function injectButton() {
-    if (document.getElementById('btnChooseTheme')) return;
+    const container = findFrontpageActionContainer();
+    if (!container) return;
 
-    // Photobooth-App action button container candidates
-    const container =
-      document.querySelector('.kiosk-actions-column') ||
-      document.querySelector('.trigger-buttons') ||
-      document.querySelector('.actions-container') ||
-      document.querySelector('[data-action="collage"]')?.parentElement ||
-      document.querySelector('[data-action="image"]')?.parentElement;
+    // Idempotency: skip if already present in this active container
+    if (container.querySelector('#btnChooseTheme')) return;
 
-    if (container) {
-      container.appendChild(createThemeButton());
+    // Clean up any stale orphaned instance from previous container instances
+    const existing = document.getElementById('btnChooseTheme');
+    if (existing) {
+      if (container.contains(existing)) return;
+      existing.closest('.extension-theme-btn-wrapper')?.remove() || existing.remove();
     }
+
+    container.appendChild(createThemeButton());
   }
 
+  // Initial injection attempt on page load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', injectButton);
   } else {
     injectButton();
   }
 
-  // Observe Vue DOM updates
+  // Observe Vue virtual DOM updates to preserve button through state re-renders
   const observer = new MutationObserver(() => injectButton());
   observer.observe(document.body, { childList: true, subtree: true });
 })();

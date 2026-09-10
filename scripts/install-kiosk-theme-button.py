@@ -20,15 +20,18 @@ from pathlib import Path
 import shutil
 import sys
 
-DEFAULT_SCRIPT_URL = "http://localhost:8080/kiosk-theme-button.js"
+DEFAULT_SCRIPT_URL = "/kiosk-theme-button.js"
 SCRIPT_IDENTIFIER = "kiosk-theme-button.js"
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+SOURCE_JS_PATH = REPO_ROOT / "ui" / "kiosk-theme-button.js"
 
 
 def build_script_tag(script_url: str) -> str:
     return f'  <script src="{script_url}"></script>\n'
 
 
-def install_script_tag(index_path: Path, script_url: str, dry_run: bool = False) -> int:
+def install_script_tag(index_path: Path, script_url: str = DEFAULT_SCRIPT_URL, dry_run: bool = False) -> int:
     if not index_path.exists():
         sys.stderr.write(f"Error: Target file does not exist: {index_path}\n")
         return 1
@@ -44,16 +47,33 @@ def install_script_tag(index_path: Path, script_url: str, dry_run: bool = False)
         )
         return 1
 
+    dest_js = index_path.parent / SCRIPT_IDENTIFIER
+
+    if not SOURCE_JS_PATH.exists():
+        sys.stderr.write(f"Error: Source extension script not found: {SOURCE_JS_PATH}\n")
+        return 1
+
     try:
         content = index_path.read_text(encoding="utf-8")
     except Exception as err:
         sys.stderr.write(f"Error reading {index_path}: {err}\n")
         return 1
 
-    # Idempotency check
+    # 1. Install or update extension JS file in served directory
+    if dry_run:
+        print(f"[DRY RUN] Would copy {SOURCE_JS_PATH.name} to: {dest_js}")
+    else:
+        try:
+            shutil.copy2(SOURCE_JS_PATH, dest_js)
+            print(f"[COPIED] Installed extension script to: {dest_js}")
+        except Exception as err:
+            sys.stderr.write(f"Error copying extension script to {dest_js}: {err}\n")
+            return 1
+
+    # 2. Check if script tag is already present in index.html (Idempotency)
     if SCRIPT_IDENTIFIER in content:
-        print(f"[OK] Theme selector script is already present in: {index_path}")
-        print("     No changes were made (idempotent run).")
+        print(f"[OK] Theme selector script tag is already present in: {index_path}")
+        print("     File copy updated. HTML script tag preserved without duplication (idempotent).")
         return 0
 
     # Ensure </body> tag is present
@@ -76,7 +96,7 @@ def install_script_tag(index_path: Path, script_url: str, dry_run: bool = False)
         print(f"[DRY RUN] Target file: {index_path}")
         print(f"[DRY RUN] Backup would be created at: {backup_path}")
         print(f"[DRY RUN] Script tag to insert before </body>:\n{script_tag.rstrip()}")
-        print("[DRY RUN] No files were modified.")
+        print("[DRY RUN] No index.html modifications written.")
         return 0
 
     try:
@@ -89,7 +109,7 @@ def install_script_tag(index_path: Path, script_url: str, dry_run: bool = False)
     try:
         index_path.write_text(new_content, encoding="utf-8")
         print(f"[SUCCESS] Successfully injected theme button script into: {index_path}")
-        print(f"          Injected URL: {script_url}")
+        print(f"          Script tag: {script_tag.strip()}")
         return 0
     except Exception as err:
         sys.stderr.write(f"Error writing to {index_path}: {err}\n")
@@ -108,24 +128,41 @@ def uninstall_script_tag(index_path: Path, dry_run: bool = False) -> int:
         return 1
 
     content = index_path.read_text(encoding="utf-8")
-    if SCRIPT_IDENTIFIER not in content:
-        print(f"[OK] No theme selector script tag found in: {index_path}")
-        return 0
+    dest_js = index_path.parent / SCRIPT_IDENTIFIER
 
-    lines = content.splitlines(keepends=True)
-    new_lines = [line for line in lines if SCRIPT_IDENTIFIER not in line]
+    tag_found = SCRIPT_IDENTIFIER in content
+    js_found = dest_js.exists()
+
+    if not tag_found and not js_found:
+        print(f"[OK] Theme selector script is not installed in: {index_path.parent}")
+        return 0
 
     if dry_run:
-        print(f"[DRY RUN] Would remove theme script tag from: {index_path}")
+        if tag_found:
+            print(f"[DRY RUN] Would remove theme script tag from: {index_path}")
+        if js_found:
+            print(f"[DRY RUN] Would delete served extension script: {dest_js}")
         return 0
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = index_path.with_name(f"{index_path.name}.bak.{timestamp}")
-    shutil.copy2(index_path, backup_path)
-    print(f"[BACKUP] Created backup at: {backup_path}")
+    # Remove script tag from index.html if present
+    if tag_found:
+        lines = content.splitlines(keepends=True)
+        new_lines = [line for line in lines if SCRIPT_IDENTIFIER not in line]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = index_path.with_name(f"{index_path.name}.bak.{timestamp}")
+        shutil.copy2(index_path, backup_path)
+        print(f"[BACKUP] Created backup at: {backup_path}")
+        index_path.write_text("".join(new_lines), encoding="utf-8")
+        print(f"[SUCCESS] Removed theme selector script tag from: {index_path}")
 
-    index_path.write_text("".join(new_lines), encoding="utf-8")
-    print(f"[SUCCESS] Removed theme selector script tag from: {index_path}")
+    # Remove copied JS file if present
+    if js_found:
+        try:
+            dest_js.unlink()
+            print(f"[DELETED] Removed served extension script: {dest_js}")
+        except Exception as err:
+            sys.stderr.write(f"Warning: Could not delete {dest_js}: {err}\n")
+
     return 0
 
 
