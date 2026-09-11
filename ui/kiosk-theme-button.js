@@ -1,9 +1,15 @@
 /**
- * ui/kiosk-theme-button.js - Photobooth-App Kiosk "Choose Theme" Extension Button Injector
+ * ui/kiosk-theme-button.js - Photobooth-App Kiosk Extension
  *
- * Injects a native-styled "Choose Theme" action button directly into the real
- * Photobooth-App idle front-page (.action-buttons.q-gutter-md) without modifying
- * the compiled Vue bundle or core packages.
+ * 1. Injects a native-styled "Choose Theme" action button directly into the real
+ *    Photobooth-App idle front-page (.action-buttons.q-gutter-md) without modifying
+ *    the compiled Vue bundle or core packages.
+ * 2. Deterministic public booth navigation: intercepts post-capture and login return
+ *    buttons (which natively call router.back() / router.go(-1)) and routes them
+ *    directly home to '#/', preventing history pop bounces into /admin or /auth/login.
+ * 3. Public session sanitization: purges stale admin credentials from sessionStorage
+ *    when idle on the public booth screen ('#/'), preventing accidental auto-entry
+ *    into the Admin Center.
  */
 (function () {
   const THEME_SELECTOR_URL = window.THEME_SELECTOR_URL || 'http://localhost:8080/';
@@ -100,14 +106,151 @@
     container.appendChild(createThemeButton());
   }
 
-  // Initial injection attempt on page load
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectButton);
-  } else {
-    injectButton();
+  /**
+   * Inject style rule to neutralize the invisible admin hotspot.
+   * Ensures the browser completely ignores the invisible element for hit-testing,
+   * allowing guest clicks to pass directly through to native controls underneath.
+   */
+  function injectNeutralizingStyles() {
+    const STYLE_ID = 'kiosk-neutralize-admin-hotspot';
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = `
+      #frontpage-button-to-admin.action-button-admin-invisible,
+      .action-button-admin.action-button-admin-invisible {
+        pointer-events: none !important;
+        display: none !important;
+        visibility: hidden !important;
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
   }
 
-  // Observe Vue virtual DOM updates to preserve button through state re-renders
-  const observer = new MutationObserver(() => injectButton());
+  /**
+   * Explicitly disable pointer-events and display on the invisible admin button and its sticky container.
+   */
+  function neutralizeInvisibleAdminButton() {
+    const adminBtn = document.getElementById('frontpage-button-to-admin');
+    if (adminBtn) {
+      if (adminBtn.classList.contains('action-button-admin-invisible') || adminBtn.style.opacity === '0') {
+        adminBtn.style.setProperty('pointer-events', 'none', 'important');
+        adminBtn.style.setProperty('display', 'none', 'important');
+        adminBtn.style.setProperty('visibility', 'hidden', 'important');
+        const stickyParent = adminBtn.closest('.q-page-sticky');
+        if (stickyParent) {
+          stickyParent.style.setProperty('pointer-events', 'none', 'important');
+        }
+      }
+    }
+  }
+
+  /**
+   * Sanitize session credentials when on the public idle frontpage.
+   * Prevents stale admin tokens from lingering and auto-authorizing routes to /#/admin.
+   */
+  function sanitizePublicSession() {
+    const hash = window.location.hash || '';
+    if (hash === '' || hash === '#/' || hash === '#') {
+      try {
+        if (window.sessionStorage && window.sessionStorage.getItem('credentials')) {
+          window.sessionStorage.removeItem('credentials');
+        }
+      } catch (err) {
+        // Ignore cross-origin / private browsing storage errors
+      }
+      if (window.history && window.history.replaceState) {
+        try {
+          window.history.replaceState(null, '', '#/');
+        } catch (err) {}
+      }
+    }
+  }
+
+  /**
+   * Global capturing click interceptor to ensure deterministic navigation back to '#/'
+   * and block any clicks targeting the invisible admin hotspot.
+   * Intercepts:
+   * 1. Invisible admin button clicks
+   * 2. #layout-button-back outside #itemapproval-dialog (used on itempresenter post-capture and gallery)
+   * 3. The back button on #login-page
+   */
+  document.addEventListener(
+    'click',
+    function (e) {
+      if (!e.target || typeof e.target.closest !== 'function') return;
+
+      // Neutralize any click targeting frontpage-button-to-admin when invisible
+      const adminBtn = e.target.closest('#frontpage-button-to-admin, .action-button-admin-invisible');
+      if (adminBtn && adminBtn.classList.contains('action-button-admin-invisible')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      // Check for Return Button
+      const backBtn = e.target.closest('#layout-button-back');
+      if (backBtn) {
+        // Do NOT intercept if inside itemapproval-dialog (collage approval cancellation POSTs to backend)
+        if (backBtn.closest('#itemapproval-dialog')) {
+          return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        window.location.hash = '#/';
+        return;
+      }
+
+      // Check for Login Page back button
+      const loginBackBtn = e.target.closest('#login-page .q-btn');
+      if (loginBackBtn && loginBackBtn.querySelector('.q-icon')?.textContent?.includes('arrow_back')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        window.location.hash = '#/';
+      }
+    },
+    true // Use capture phase to intercept before native Vue / Quasar listeners
+  );
+
+  function handleUpdates() {
+    injectButton();
+    neutralizeInvisibleAdminButton();
+  }
+
+  /**
+   * Idempotently bootstrap the Live AR Overlay script if not already present.
+   */
+  function bootstrapAROverlay() {
+    const SCRIPT_ID = 'kiosk-ar-overlay-script';
+    if (document.getElementById(SCRIPT_ID)) return;
+    const script = document.createElement('script');
+    script.id = SCRIPT_ID;
+    script.src = `${THEME_SELECTOR_URL.replace(/\/+$/, '')}/kiosk-ar-overlay.js`;
+    script.async = true;
+    (document.head || document.documentElement).appendChild(script);
+  }
+
+  // Inject styles immediately
+  injectNeutralizingStyles();
+  bootstrapAROverlay();
+
+  // Listeners for public session hygiene
+  window.addEventListener('hashchange', sanitizePublicSession);
+  window.addEventListener('load', sanitizePublicSession);
+  sanitizePublicSession();
+
+  // Initial injection and neutralization attempt on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', handleUpdates);
+  } else {
+    handleUpdates();
+  }
+
+  // Observe Vue virtual DOM updates to preserve button and keep admin hotspot neutralized
+  const observer = new MutationObserver(() => handleUpdates());
   observer.observe(document.body, { childList: true, subtree: true });
 })();

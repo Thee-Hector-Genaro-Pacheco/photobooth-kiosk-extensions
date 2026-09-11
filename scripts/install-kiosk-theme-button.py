@@ -25,6 +25,7 @@ SCRIPT_IDENTIFIER = "kiosk-theme-button.js"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_JS_PATH = REPO_ROOT / "ui" / "kiosk-theme-button.js"
+SOURCE_AR_JS_PATH = REPO_ROOT / "ui" / "kiosk-ar-overlay.js"
 
 
 def build_script_tag(script_url: str) -> str:
@@ -48,6 +49,7 @@ def install_script_tag(index_path: Path, script_url: str = DEFAULT_SCRIPT_URL, d
         return 1
 
     dest_js = index_path.parent / SCRIPT_IDENTIFIER
+    dest_ar_js = index_path.parent / "kiosk-ar-overlay.js"
 
     if not SOURCE_JS_PATH.exists():
         sys.stderr.write(f"Error: Source extension script not found: {SOURCE_JS_PATH}\n")
@@ -59,13 +61,18 @@ def install_script_tag(index_path: Path, script_url: str = DEFAULT_SCRIPT_URL, d
         sys.stderr.write(f"Error reading {index_path}: {err}\n")
         return 1
 
-    # 1. Install or update extension JS file in served directory
+    # 1. Install or update extension JS files in served directory
     if dry_run:
         print(f"[DRY RUN] Would copy {SOURCE_JS_PATH.name} to: {dest_js}")
+        if SOURCE_AR_JS_PATH.exists():
+            print(f"[DRY RUN] Would copy {SOURCE_AR_JS_PATH.name} to: {dest_ar_js}")
     else:
         try:
             shutil.copy2(SOURCE_JS_PATH, dest_js)
             print(f"[COPIED] Installed extension script to: {dest_js}")
+            if SOURCE_AR_JS_PATH.exists():
+                shutil.copy2(SOURCE_AR_JS_PATH, dest_ar_js)
+                print(f"[COPIED] Installed AR overlay script to: {dest_ar_js}")
         except Exception as err:
             sys.stderr.write(f"Error copying extension script to {dest_js}: {err}\n")
             return 1
