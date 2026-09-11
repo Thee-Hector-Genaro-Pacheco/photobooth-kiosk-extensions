@@ -124,9 +124,12 @@ def extract_verified_fields(config: Dict[str, Any]) -> Dict[str, Any]:
         sys.exit(1)
     livestream_frameoverlay_image = uisettings["livestream_frameoverlay_image"]
 
+    image_filter = image_processing.get("image_filter", "original")
+
     return {
         "actions.image[0].processing.img_frame_enable": img_frame_enable,
         "actions.image[0].processing.img_frame_file": img_frame_file,
+        "actions.image[0].processing.image_filter": image_filter,
         "actions.collage[0].processing.canvas_img_front_file": canvas_img_front_file,
         "uisettings.enable_livestream_frameoverlay": enable_livestream_frameoverlay,
         "uisettings.livestream_frameoverlay_image": livestream_frameoverlay_image,

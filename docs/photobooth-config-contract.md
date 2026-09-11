@@ -38,3 +38,33 @@ For the `modern-gold` theme, the following verified asset paths are used:
 | `actions.collage[0].processing.canvas_img_front_file` | `"userdata/modern-gold-collage.png"` | `null` |
 | `uisettings.enable_livestream_frameoverlay` | `true` | `false` |
 | `uisettings.livestream_frameoverlay_image` | `"userdata/modern-gold-frame-v2.png"` | `null` |
+
+---
+
+## Verified Filter Configuration Fields
+
+### Generic Photo Filter
+- `actions.image[0].processing.image_filter` (string enum, default: `"original"`): Controls the active image filter applied to single-photo captures prior to frame overlay compositing.
+
+### Filter Processing Order
+In `photobooth/services/mediaprocessing/processes.py`:
+1. `RemovebgStep` (if background removal enabled)
+2. `ImageMountStep` (background image)
+3. `FillBackgroundStep` (background color)
+4. `PluginFilterStep(config.image_filter)` (**Filter applied here to photo**)
+5. `ImageFrameStep(config.img_frame_file)` (**Frame overlay composited on top here**)
+6. `TextStep(config.texts)`
+
+> [!NOTE]
+> Filters execute BEFORE frame compositing. The frame overlay is never filtered, retaining its true colors.
+
+### Initial Generic Filter Set (`FILTER_CONFIGS`)
+| Filter ID | Display Name | Verified Backend Enum Value |
+| :--- | :--- | :--- |
+| `original` | Original | `"original"` |
+| `black-and-white` | Black & White | `"FilterPilgram2.inkwell"` |
+| `vintage` | Vintage | `"FilterPilgram2._1977"` |
+| `warm` | Warm | `"FilterPilgram2.aden"` |
+| `vibrant` | Vibrant | `"FilterPilgram2.clarendon"` |
+| `film` | Film | `"FilterPilgram2.moon"` |
+
