@@ -8,3 +8,8 @@ secrets/
 media/
 private/
 config/config.json
+ar_state.json
+scratch/
+ui/kiosk-ar-overlay.js.bak.*
+__pycache__/
+*.pyc
