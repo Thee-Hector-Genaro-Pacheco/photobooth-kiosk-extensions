@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Photo Booth Theme Selector</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="kiosk-frame-outer">
+    <div class="kiosk-container">
+      <header class="kiosk-header">
+        <div class="header-panel">
+          <h1 class="title" id="pageTitle">Choose Your Theme</h1>
+          <p class="subtitle" id="pageSubtitle">Tap a frame style for your photos</p>
+        </div>
+
+        <!-- Mode Switcher: Themes vs AR Effects vs Filters -->
+        <div class="mode-tabs" role="tablist" aria-label="Selector modes">
+          <button type="button" class="tab-btn active-tab" id="tabThemes" role="tab" aria-selected="true" aria-controls="themeGrid">
+            <span class="tab-icon">🖼️</span>
+            <span class="tab-label">Frame Themes</span>
+            <span class="tab-pill" id="themeActivePill">Theme</span>
+          </button>
+          <button type="button" class="tab-btn" id="tabAREffects" role="tab" aria-selected="false" aria-controls="arGrid">
+            <span class="tab-icon">🎭</span>
+            <span class="tab-label">AR Effects</span>
+            <span class="tab-pill" id="arActivePill">None</span>
+          </button>
+          <button type="button" class="tab-btn" id="tabFilters" role="tab" aria-selected="false" aria-controls="filterGrid">
+            <span class="tab-icon">✨</span>
+            <span class="tab-label">Photo Filters</span>
+            <span class="tab-pill" id="filterActivePill">Original</span>
+          </button>
+        </div>
+
+        <div class="header-actions">
+          <a href="http://localhost:8000/#/" class="btn-back" id="btnBackToBooth" title="Return to Photo Booth">
+            <svg class="btn-back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            <span>Back to Photo Booth</span>
+          </a>
+        </div>
+      </header>
+
+      <main class="cards-grid" id="themeGrid">
+        <!-- Modern Gold -->
+        <button type="button" class="theme-option theme-card" id="card-modern-gold" data-theme="modern-gold">
+          <div class="card-badge" id="badge-modern-gold">Current Theme</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Sample Photo" class="sample-photo">
+            <img src="assets/themes/modern-gold-frame-v2.png" alt="Modern Gold" class="frame-overlay">
+          </div>
+        </button>
+
+        <!-- Tropical -->
+        <button type="button" class="theme-option theme-card" id="card-tropical" data-theme="tropical">
+          <div class="card-badge" id="badge-tropical">Current Theme</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Sample Photo" class="sample-photo">
+            <img src="assets/themes/tropical-frame-v1.png" alt="Tropical" class="frame-overlay">
+          </div>
+        </button>
+
+        <!-- Black & Gold -->
+        <button type="button" class="theme-option theme-card" id="card-black-gold" data-theme="black-gold">
+          <div class="card-badge" id="badge-black-gold">Current Theme</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Sample Photo" class="sample-photo">
+            <img src="assets/themes/black-and-gold-frame-v1.png" alt="Black & Gold" class="frame-overlay">
+          </div>
+        </button>
+
+        <!-- Elegant Floral -->
+        <button type="button" class="theme-option theme-card" id="card-floral" data-theme="floral">
+          <div class="card-badge" id="badge-floral">Current Theme</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Sample Photo" class="sample-photo">
+            <img src="assets/themes/floral-frame-v1.png" alt="Elegant Floral" class="frame-overlay">
+          </div>
+        </button>
+
+        <!-- Celebration -->
+        <button type="button" class="theme-option theme-card" id="card-celebration" data-theme="celebration">
+          <div class="card-badge" id="badge-celebration">Current Theme</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Sample Photo" class="sample-photo">
+            <img src="assets/themes/confetti-frame-v1.png" alt="Celebration" class="frame-overlay">
+          </div>
+        </button>
+
+        <!-- Halloween -->
+        <button type="button" class="theme-option theme-card" id="card-halloween" data-theme="halloween">
+          <div class="card-badge" id="badge-halloween">Current Theme</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Sample Photo" class="sample-photo">
+            <img src="assets/themes/halloween-frame-v1.png" alt="Halloween" class="frame-overlay">
+          </div>
+        </button>
+
+        <!-- Thanksgiving -->
+        <button type="button" class="theme-option theme-card" id="card-thanksgiving" data-theme="thanksgiving">
+          <div class="card-badge" id="badge-thanksgiving">Current Theme</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Sample Photo" class="sample-photo">
+            <img src="assets/themes/thanksgiving-frame-v1.png" alt="Thanksgiving" class="frame-overlay">
+          </div>
+        </button>
+
+        <!-- Christmas -->
+        <button type="button" class="theme-option theme-card" id="card-christmas" data-theme="christmas">
+          <div class="card-badge" id="badge-christmas">Current Theme</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Sample Photo" class="sample-photo">
+            <img src="assets/themes/christmas-frame-v1.png" alt="Christmas" class="frame-overlay">
+          </div>
+        </button>
+
+        <!-- New Year -->
+        <button type="button" class="theme-option theme-card" id="card-new-year" data-theme="new-year">
+          <div class="card-badge" id="badge-new-year">Current Theme</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Sample Photo" class="sample-photo">
+            <img src="assets/themes/new-year-frame-v1.png" alt="New Year" class="frame-overlay">
+          </div>
+        </button>
+
+        <!-- No Border -->
+        <button type="button" class="theme-option theme-card" id="card-none" data-theme="none">
+          <div class="card-badge" id="badge-none">Current Theme</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="No Border" class="sample-photo">
+          </div>
+        </button>
+      </main>
+
+      <!-- AR Effects Grid -->
+      <main class="cards-grid ar-grid" id="arGrid" style="display: none;">
+        <!-- None (Disables AR) -->
+        <button type="button" class="theme-option ar-card" id="card-ar-none" data-ar-effect="none">
+          <div class="card-badge" id="badge-ar-none">Current Effect</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="No AR Effect" class="sample-photo">
+            <div class="ar-none-placeholder">
+              <span class="none-icon">🚫</span>
+              <span>No AR Effect</span>
+            </div>
+          </div>
+          <div class="ar-card-meta">
+            <span class="ar-card-title">None</span>
+            <span class="ar-card-sub">Disable Live AR</span>
+          </div>
+        </button>
+      </main>
+
+      <!-- Photo Filters Grid -->
+      <main class="cards-grid filter-grid" id="filterGrid" style="display: none;">
+        <!-- Original -->
+        <button type="button" class="theme-option filter-card" id="card-filter-original" data-filter="original">
+          <div class="card-badge" id="badge-filter-original">Current Filter</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Original" class="sample-photo filter-preview-original">
+          </div>
+          <div class="filter-card-meta">
+            <span class="filter-card-title">Original</span>
+            <span class="filter-card-sub">Natural Colors</span>
+          </div>
+        </button>
+
+        <!-- Black & White -->
+        <button type="button" class="theme-option filter-card" id="card-filter-black-and-white" data-filter="black-and-white">
+          <div class="card-badge" id="badge-filter-black-and-white">Current Filter</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Black & White" class="sample-photo filter-preview-inkwell">
+          </div>
+          <div class="filter-card-meta">
+            <span class="filter-card-title">Black & White</span>
+            <span class="filter-card-sub">Classic B&W (Inkwell)</span>
+          </div>
+        </button>
+
+        <!-- Vintage -->
+        <button type="button" class="theme-option filter-card" id="card-filter-vintage" data-filter="vintage">
+          <div class="card-badge" id="badge-filter-vintage">Current Filter</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Vintage" class="sample-photo filter-preview-vintage">
+          </div>
+          <div class="filter-card-meta">
+            <span class="filter-card-title">Vintage</span>
+            <span class="filter-card-sub">Retro 1977 Look</span>
+          </div>
+        </button>
+
+        <!-- Warm -->
+        <button type="button" class="theme-option filter-card" id="card-filter-warm" data-filter="warm">
+          <div class="card-badge" id="badge-filter-warm">Current Filter</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Warm" class="sample-photo filter-preview-warm">
+          </div>
+          <div class="filter-card-meta">
+            <span class="filter-card-title">Warm</span>
+            <span class="filter-card-sub">Golden Pastel (Aden)</span>
+          </div>
+        </button>
+
+        <!-- Vibrant -->
+        <button type="button" class="theme-option filter-card" id="card-filter-vibrant" data-filter="vibrant">
+          <div class="card-badge" id="badge-filter-vibrant">Current Filter</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Vibrant" class="sample-photo filter-preview-vibrant">
+          </div>
+          <div class="filter-card-meta">
+            <span class="filter-card-title">Vibrant</span>
+            <span class="filter-card-sub">Vivid Saturated (Clarendon)</span>
+          </div>
+        </button>
+
+        <!-- Film -->
+        <button type="button" class="theme-option filter-card" id="card-filter-film" data-filter="film">
+          <div class="card-badge" id="badge-filter-film">Current Filter</div>
+          <div class="card-frame-stack">
+            <img src="assets/sample-photo.jpg" alt="Film" class="sample-photo filter-preview-film">
+          </div>
+          <div class="filter-card-meta">
+            <span class="filter-card-title">Film</span>
+            <span class="filter-card-sub">Moody Cinema (Moon)</span>
+          </div>
+        </button>
+      </main>
+
+      <footer class="kiosk-footer">
+        <div class="status-bar">
+          <span class="status-pill preview-pill" id="modePill">Preview Mode</span>
+          <span class="status-text" id="statusMessage">Loading current theme...</span>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

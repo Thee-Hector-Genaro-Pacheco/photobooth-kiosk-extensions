@@ -1,0 +1,596 @@
+:root {
+  /* Firme Booth Kiosk Palette */
+  --booth-outer-bg: #edf2f7;
+  --booth-canvas: #e2e8ee;
+  --booth-cream: #FEFBEA;
+  --booth-gold: #c5a059;
+  --booth-gold-accent: #d4af37;
+  --booth-gold-dark: #694C12;
+  --booth-slate: #2e4053;
+  --booth-slate-dark: #243342;
+  --booth-slate-light: #3b5066;
+  --booth-white: #ffffff;
+  --booth-text-muted: #d5e0ea;
+  --booth-radius: 16px;
+  --booth-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: var(--booth-outer-bg);
+  color: var(--booth-slate-dark);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+}
+
+/* Outer & Inner Elegant Gold Frame Lines */
+.kiosk-frame-outer {
+  position: relative;
+  width: calc(100vw - 24px);
+  max-width: 1440px;
+  min-height: calc(100vh - 24px);
+  margin: 12px auto;
+  border: 1.5px solid var(--booth-gold);
+  border-radius: 14px;
+  padding: 5px;
+  box-sizing: border-box;
+  display: flex;
+}
+
+.kiosk-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: var(--booth-canvas);
+  border: 1px solid var(--booth-gold-accent);
+  border-radius: 10px;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+/* Header with Slate Banner Panel */
+.kiosk-header {
+  text-align: center;
+  padding-bottom: 10px;
+  position: relative;
+}
+
+.header-panel {
+  background: var(--booth-slate);
+  border: 2.5px solid var(--booth-white);
+  border-radius: var(--booth-radius);
+  box-shadow: var(--booth-shadow);
+  padding: 9px 36px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 360px;
+  max-width: 90%;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--booth-white);
+  letter-spacing: -0.3px;
+  margin-bottom: 2px;
+  text-align: center;
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  color: var(--booth-cream);
+  opacity: 0.92;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Mode Switcher Tabs: Frame Themes vs Photo Filters */
+.mode-tabs {
+  margin-top: 10px;
+  display: inline-flex;
+  background: var(--booth-slate-dark);
+  padding: 4px;
+  border-radius: 999px;
+  border: 1.5px solid var(--booth-gold);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+  gap: 4px;
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  padding: 7px 18px;
+  color: var(--booth-cream);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  outline: none;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tab-btn.active-tab {
+  background: var(--booth-slate);
+  color: var(--booth-white);
+  border-color: var(--booth-gold-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.tab-btn .tab-icon {
+  font-size: 1rem;
+}
+
+.tab-btn .tab-pill {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: var(--booth-gold-accent);
+  font-weight: 600;
+}
+
+.tab-btn.active-tab .tab-pill {
+  background: var(--booth-gold);
+  color: #1e1302;
+  border-color: #947228;
+}
+
+/* Header Actions - Back to Photo Booth */
+.header-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--booth-slate);
+  border: 1.5px solid var(--booth-gold);
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--booth-white);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.btn-back:hover,
+.btn-back:focus-visible {
+  background: var(--booth-slate-light);
+  border-color: var(--booth-gold-accent);
+}
+
+.btn-back:active {
+  transform: scale(0.97);
+}
+
+.btn-back-icon {
+  width: 15px;
+  height: 15px;
+  stroke: var(--booth-gold-accent);
+  flex-shrink: 0;
+}
+
+/* Theme Cards Grid */
+.cards-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+  align-items: center;
+  justify-items: center;
+  width: 100%;
+  max-width: 1380px;
+  margin: auto;
+  padding: 12px 0;
+  min-height: 0;
+}
+
+@media (min-width: 1300px) {
+  .cards-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Theme Option Selectable Buttons (Each Option IS the Frame PNG) */
+.theme-option {
+  position: relative;
+  padding: 0;
+  border: 2px solid transparent;
+  background: transparent;
+  overflow: hidden;
+  cursor: pointer;
+  outline: none;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 450px;
+  aspect-ratio: 1800 / 1560;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  box-shadow: none;
+  transition: transform 0.12s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.theme-option:active {
+  transform: scale(0.98);
+}
+
+/* Stacking Container: binds sample photo and canonical frame to identical bounds */
+.card-frame-stack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+/* Both layers share grid cell (1 / 1) ensuring identical bounds */
+.card-frame-stack img {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+/* Bottom layer: shared sample photo */
+.card-frame-stack .sample-photo {
+  z-index: 1;
+}
+
+/* Top layer: canonical transparent production frame */
+.card-frame-stack .frame-overlay {
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Active / Selected Option Styling (Matches Collage Screen Light Border & Drop Shadow) */
+.theme-option.active-theme {
+  border-color: var(--booth-gold-accent);
+  box-shadow: 0 0 0 2px var(--booth-gold-accent), 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+/* CURRENT THEME Overlay Badge (Compact Booth Action Control Style) */
+.theme-option .card-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-radius: 999px;
+  background: var(--booth-slate);
+  color: var(--booth-white);
+  border: 1.5px solid var(--booth-gold-accent);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.theme-option.active-theme .card-badge,
+.theme-option.active-filter .card-badge,
+.theme-option.active-ar .card-badge {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.theme-option.active-filter,
+.theme-option.active-ar {
+  border-color: var(--booth-gold-accent);
+  box-shadow: 0 0 0 2px var(--booth-gold-accent), 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+/* Filter Card Metadata Panel */
+.filter-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-card-meta {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, rgba(36, 51, 66, 0.6) 0%, rgba(36, 51, 66, 0.95) 100%);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 4;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.filter-card-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--booth-white);
+  letter-spacing: -0.2px;
+}
+
+.filter-card-sub {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--booth-cream);
+  opacity: 0.9;
+}
+
+/* AR Card Metadata Panel & Stack Styles */
+.ar-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.ar-card-meta {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, rgba(36, 51, 66, 0.6) 0%, rgba(36, 51, 66, 0.95) 100%);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 4;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.ar-card-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--booth-white);
+  letter-spacing: -0.2px;
+}
+
+.ar-card-sub {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--booth-cream);
+  opacity: 0.9;
+}
+
+.card-frame-stack .ar-overlay-preview {
+  z-index: 3;
+  width: 58%;
+  height: auto;
+  max-height: 45%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+  position: absolute;
+  top: 32%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.ar-none-placeholder {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--booth-cream);
+  font-weight: 700;
+  font-size: 1.05rem;
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.ar-none-placeholder .none-icon {
+  font-size: 2.5rem;
+  margin-bottom: 6px;
+  opacity: 0.85;
+}
+
+/* Simulated CSS Filter Previews (UI Hints Only) */
+.filter-preview-original {
+  filter: none;
+}
+
+.filter-preview-inkwell {
+  filter: grayscale(100%) contrast(115%);
+}
+
+.filter-preview-vintage {
+  filter: sepia(45%) contrast(105%) brightness(105%);
+}
+
+.filter-preview-warm {
+  filter: sepia(20%) saturate(125%) brightness(105%);
+}
+
+.filter-preview-vibrant {
+  filter: contrast(120%) saturate(135%);
+}
+
+.filter-preview-film {
+  filter: grayscale(85%) contrast(105%) brightness(95%);
+}
+
+/* Footer Status Bar */
+.kiosk-footer {
+  padding-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.status-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--booth-slate);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  padding: 7px 18px;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.status-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.preview-pill {
+  background: var(--booth-gold);
+  color: #1e1302;
+  border: 1px solid #947228;
+}
+
+.status-text {
+  color: var(--booth-cream);
+  font-weight: 500;
+}
+
+/* Responsive adjustments for touchscreen kiosks (e.g. 800x480 or 1024x600) */
+@media (max-height: 560px) {
+  .kiosk-frame-outer {
+    margin: 6px auto;
+    width: calc(100vw - 12px);
+    min-height: calc(100vh - 12px);
+    padding: 3px;
+  }
+  .kiosk-container {
+    padding: 8px 14px;
+  }
+  .header-panel {
+    padding: 6px 18px;
+    min-width: 260px;
+  }
+  .title {
+    font-size: 1.35rem;
+    margin-bottom: 2px;
+  }
+  .subtitle {
+    display: none;
+  }
+  .cards-grid {
+    gap: 12px;
+    padding: 4px 0;
+  }
+  .kiosk-footer {
+    padding-top: 4px;
+  }
+  .status-bar {
+    padding: 4px 12px;
+    font-size: 0.78rem;
+  }
+}
+
+/* ==========================================================================
+   Photobooth-App Action Button Styling (Choose Theme)
+   Matches existing Photobooth-App kiosk action button design system
+   ========================================================================== */
+
+/* Photobooth-App Action Buttons (Image, Collage, Choose Theme) */
+.booth-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  background-color: #3b5e82;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  color: #ffffff;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+  padding: 8px 6px;
+  outline: none;
+}
+
+.booth-action-btn:hover {
+  background-color: #446d96;
+}
+
+.booth-action-btn:active {
+  transform: scale(0.95);
+  background-color: #325070;
+}
+
+.booth-action-btn .btn-icon {
+  width: 36px;
+  height: 36px;
+  stroke: #ffffff;
+  stroke-width: 2;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.booth-action-btn .btn-label {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #ffffff;
+  text-align: center;
+  line-height: 1.15;
+  white-space: normal;
+  letter-spacing: -0.1px;
+}
+
+/* Choose Theme Button specific styling */
+.btn-theme {
+  position: relative;
+}
+
+.btn-theme:focus-visible {
+  box-shadow: 0 0 0 2px var(--booth-gold-accent), 0 4px 14px rgba(0, 0, 0, 0.22);
+}
