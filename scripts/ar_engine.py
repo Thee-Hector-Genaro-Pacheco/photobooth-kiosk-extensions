@@ -245,7 +245,7 @@ AR_EFFECT_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "scale_reference": "inter_eye_distance",
                 "scale_factor": 1.35,               # Natural mustache width extending past mouth corners
                 "offset_along_eyes": 0.0,
-                "offset_along_up": 0.0,
+                "offset_along_up": -0.35,           # Shift down along face vector to sit below nose on upper lip
             }
         ],
     },

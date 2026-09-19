@@ -7,9 +7,12 @@
  * 3. Does NOT replace Photobooth-App's camera stream.
  * 4. pointer-events: none ensures zero interference with buttons, themes, or admin hotspot.
  * 5. Generic data-driven renderer: zero effect-specific branches (no 'if effect === glasses').
- * 6. Viewport mapping handles object-fit: contain, aspect ratio, letterbox/pillarbox, and mirroring.
- * 7. Multi-face tracking with generic EMA smoothing and graceful alpha fade-out on loss.
- * 8. Fully local: connects to extension daemon at http://localhost:8080/api/ar/stream.
+ * 6. Generic frame-aware coordinate projection: maps raw 1056x704 camera landmarks through
+ *    the active theme frame's transparent cutout bbox (cover-fit) onto the composite canvas.
+ * 7. Zero theme-name branching: transparent openings are derived dynamically from frame alpha.
+ * 8. Strict fallback: seamlessly preserves baseline projection when no frame is active or loading.
+ * 9. Multi-face tracking with generic EMA smoothing and graceful alpha fade-out on loss.
+ * 10. Fully local: connects to extension daemon at http://localhost:8080/api/ar/stream.
  */
 (function () {
   'use strict';
@@ -30,6 +33,15 @@
     enabled: true,
     activeEffect: 'glasses',
   };
+
+  // Active frame overlay geometry tracking
+  let activeFrameUrl = null;
+  const frameGeometryCache = new Map(); // url -> { frameWidth, frameHeight, bbox, streamWidth, streamHeight, streamX, streamY }
+  const pendingFrameLoads = new Set(); // url
+  let lastFrameSyncTime = 0;
+  const FRAME_SYNC_INTERVAL_MS = 2000;
+  let isSyncingFrame = false;
+  let frameLoadWarningLogged = false;
 
   // Data-driven effect cache
   let effectConfigs = {};
@@ -59,6 +71,180 @@
     img.src = `${AR_SERVER_BASE}/${assetRelPath.replace(/^\/+/, '')}`;
     loadedAssets.set(assetRelPath, img);
     return null;
+  }
+
+  /**
+   * Scan RGBA image buffer for the bounding box of pixels with alpha < 255.
+   * Runs asynchronously outside the renderFrame loop.
+   */
+  function computeTransparentBBox(data, width, height, step) {
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (data[(y * width + x) * 4 + 3] < 255) {
+          minY = y;
+          y = height;
+          break;
+        }
+      }
+    }
+
+    for (let y = height - 1; y >= 0; y--) {
+      for (let x = 0; x < width; x++) {
+        if (data[(y * width + x) * 4 + 3] < 255) {
+          maxY = y;
+          y = -1;
+          break;
+        }
+      }
+    }
+
+    for (let x = 0; x < width; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        if (data[(y * width + x) * 4 + 3] < 255) {
+          minX = x;
+          x = width;
+          break;
+        }
+      }
+    }
+
+    for (let x = width - 1; x >= 0; x--) {
+      for (let y = minY; y <= maxY; y++) {
+        if (data[(y * width + x) * 4 + 3] < 255) {
+          maxX = x;
+          x = -1;
+          break;
+        }
+      }
+    }
+
+    if (maxX < minX || maxY < minY) {
+      return null;
+    }
+
+    return {
+      x: minX * step,
+      y: minY * step,
+      width: (maxX - minX + 1) * step,
+      height: (maxY - minY + 1) * step,
+    };
+  }
+
+  /**
+   * Load frame image once and derive camera placement inside transparent cutout.
+   * Result is cached so scanning occurs only once per asset URL.
+   */
+  function loadAndCacheFrameGeometry(url) {
+    if (!url || frameGeometryCache.has(url) || pendingFrameLoads.has(url)) {
+      return;
+    }
+    pendingFrameLoads.add(url);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function () {
+      try {
+        const fw = img.naturalWidth || img.width;
+        const fh = img.naturalHeight || img.height;
+        if (fw <= 0 || fh <= 0) {
+          return;
+        }
+
+        const step = 2;
+        const sw = Math.ceil(fw / step);
+        const sh = Math.ceil(fh / step);
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = sw;
+        offCanvas.height = sh;
+        const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+        offCtx.drawImage(img, 0, 0, sw, sh);
+        const imgData = offCtx.getImageData(0, 0, sw, sh);
+        const bbox = computeTransparentBBox(imgData.data, sw, sh, step);
+
+        if (bbox) {
+          const cameraWidth = 1056;
+          const cameraHeight = 704;
+          const scale = Math.max(bbox.width / cameraWidth, bbox.height / cameraHeight);
+          const streamWidth = cameraWidth * scale;
+          const streamHeight = cameraHeight * scale;
+          const streamX = bbox.x + (bbox.width - streamWidth) / 2.0;
+          const streamY = bbox.y + (bbox.height - streamHeight) / 2.0;
+
+          frameGeometryCache.set(url, {
+            frameWidth: fw,
+            frameHeight: fh,
+            bbox: bbox,
+            streamWidth: streamWidth,
+            streamHeight: streamHeight,
+            streamX: streamX,
+            streamY: streamY,
+          });
+        } else {
+          console.warn('[AR Overlay] No transparent opening detected in frame:', url);
+        }
+      } catch (err) {
+        if (!frameLoadWarningLogged) {
+          console.warn('[AR Overlay] Failed to parse frame transparency bbox:', err.message || err);
+          frameLoadWarningLogged = true;
+        }
+      } finally {
+        pendingFrameLoads.delete(url);
+      }
+    };
+    img.onerror = function () {
+      if (!frameLoadWarningLogged) {
+        console.warn('[AR Overlay] Failed to load frame image for geometry:', url);
+        frameLoadWarningLogged = true;
+      }
+      pendingFrameLoads.delete(url);
+    };
+    img.src = url;
+  }
+
+  /**
+   * Query Photobooth-App configuration to detect active frame overlay.
+   */
+  async function syncActiveFrame(force) {
+    const now = performance.now();
+    if (!force && (isSyncingFrame || now - lastFrameSyncTime < FRAME_SYNC_INTERVAL_MS)) {
+      return;
+    }
+    lastFrameSyncTime = now;
+    isSyncingFrame = true;
+
+    try {
+      const res = await fetch('/api/config', { cache: 'no-store' });
+      if (res.ok) {
+        const cfg = await res.json();
+        const uisettings = cfg.uisettings || {};
+        if (uisettings.enable_livestream_frameoverlay && uisettings.livestream_frameoverlay_image) {
+          const fullUrl = new URL(uisettings.livestream_frameoverlay_image, document.baseURI).href;
+          if (activeFrameUrl !== fullUrl) {
+            activeFrameUrl = fullUrl;
+            loadAndCacheFrameGeometry(fullUrl);
+          }
+        } else {
+          activeFrameUrl = null;
+        }
+      }
+    } catch (err) {
+      // Offline / error: continue with existing state or fallback
+    } finally {
+      isSyncingFrame = false;
+    }
+  }
+
+  /**
+   * Retrieve active frame geometry if loaded and cached, or null.
+   */
+  function getActiveFrameGeometry() {
+    if (!activeFrameUrl) return null;
+    return frameGeometryCache.get(activeFrameUrl) || null;
   }
 
   /**
@@ -102,7 +288,7 @@
       return null;
     }
 
-    // Determine camera stream aspect ratio
+    // Determine stream canvas aspect ratio
     let camAspect = streamConfig.aspectRatio || DEFAULT_STREAM_ASPECT;
     if (streamElem.width > 0 && streamElem.height > 0) {
       camAspect = streamElem.width / streamElem.height;
@@ -136,18 +322,25 @@
 
   /**
    * Map normalized [0, 1] camera point to canvas-local coordinates.
-   * Canvas is anchored and sized to the visible stream, so (0, 0) is top-left
-   * and (geo.width, geo.height) is bottom-right of the camera image.
+   * When a frame overlay is active, projects camera coordinates through
+   * the transparent opening cover-fit geometry onto the composite canvas.
+   * Falls back to standard full-stream projection when no frame is enabled.
    */
-  function mapNormalizedPoint(normPt, geo) {
-    let nx = normPt[0];
+  function mapNormalizedPoint(normPt, geo, geom) {
+    const nx = normPt[0];
     const ny = normPt[1];
+    const nxMapped = geo.mirrored ? (1.0 - nx) : nx;
 
-    if (geo.mirrored) {
-      nx = 1.0 - nx;
+    if (geom) {
+      const frameX = geom.streamX + nxMapped * geom.streamWidth;
+      const frameY = geom.streamY + ny * geom.streamHeight;
+      const canvasX = (frameX / geom.frameWidth) * geo.width;
+      const canvasY = (frameY / geom.frameHeight) * geo.height;
+      return [canvasX, canvasY];
     }
 
-    const canvasX = nx * geo.width;
+    // Baseline fallback (no active frame or geometry pending)
+    const canvasX = nxMapped * geo.width;
     const canvasY = ny * geo.height;
     return [canvasX, canvasY];
   }
@@ -320,6 +513,10 @@
       return;
     }
 
+    // Throttled frame config check
+    syncActiveFrame();
+
+    const activeGeom = getActiveFrameGeometry();
     const now = performance.now();
     const activeConfig = effectConfigs[streamConfig.activeEffect];
 
@@ -352,10 +549,13 @@
         // 1. Resolve anchor point in canvas-local coordinates
         const anchorName = el.anchor || 'eyes_center';
         const rawAnchorPt = track.anchors[anchorName] || track.center;
-        const [anchorScreenX, anchorScreenY] = mapNormalizedPoint(rawAnchorPt, geo);
+        const [anchorScreenX, anchorScreenY] = mapNormalizedPoint(rawAnchorPt, geo, activeGeom);
 
         // 2. Compute element screen scale proportional to tracked face inter-eye distance
-        const scaleRefDist = track.interEyeDist * geo.width;
+        const cameraScreenWidth = activeGeom
+          ? (activeGeom.streamWidth / activeGeom.frameWidth) * geo.width
+          : geo.width;
+        const scaleRefDist = track.interEyeDist * cameraScreenWidth;
         const scaleFactor = typeof el.scale_factor === 'number' ? el.scale_factor : 1.0;
         const targetW = Math.max(10, scaleRefDist * scaleFactor);
         const aspect = img.naturalHeight / Math.max(1, img.naturalWidth);
@@ -490,6 +690,7 @@
     if (isPresent && !isStreamActive) {
       isStreamActive = true;
       ensureOverlayCanvas();
+      syncActiveFrame(true);
       const geo = computeStreamGeometry();
       if (geo) {
         syncCanvasBounds(geo);
@@ -514,8 +715,14 @@
    */
   async function init() {
     await fetchARConfig();
+    await syncActiveFrame(true);
     ensureOverlayCanvas();
     checkStreamPresence();
+
+    // Re-check frame on user interaction (e.g. theme button clicked)
+    window.addEventListener('click', () => {
+      syncActiveFrame(true);
+    }, { passive: true });
 
     // Observe DOM mutations to detect when Photobooth mounts or unmounts the stream
     const observer = new MutationObserver(() => {
