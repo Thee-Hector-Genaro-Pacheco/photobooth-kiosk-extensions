@@ -413,6 +413,8 @@
         bestTrack.unitVecUp = raw.unit_vec_up;
         bestTrack.targetOpacity = 1.0;
         bestTrack.lastSeen = now;
+        bestTrack.expression = raw.expression || null;
+        bestTrack.expressionEvents = Array.isArray(raw.expression_events) ? raw.expression_events : [];
       } else {
         // Create new track
         const tId = nextTrackId++;
@@ -437,6 +439,8 @@
           opacity: 0.0, // Fade in gently
           targetOpacity: 1.0,
           lastSeen: now,
+          expression: raw.expression || null,
+          expressionEvents: Array.isArray(raw.expression_events) ? raw.expression_events : [],
         });
       }
     }
@@ -473,6 +477,49 @@
     if (overlayCanvas.width !== bufW || overlayCanvas.height !== bufH) {
       overlayCanvas.width = bufW;
       overlayCanvas.height = bufH;
+    }
+  }
+
+  /**
+   * Evaluates whether an element's declarative visibility rule is satisfied.
+   * Completely generic: zero effect-specific branches, zero detector assumptions.
+   *
+   * Semantics:
+   * - No visible_when rule: return true (static element, unconditionally visible).
+   * - visible_when present but malformed (not an object): return false (fail-closed).
+   * - visible_when.expression defined:
+   *     - track.expression missing or null: return false (fail-closed).
+   *     - equals defined: compare actual expression value against equals.
+   *     - equals omitted: evaluate truthiness of actual expression value.
+   * - Malformed rule or unhandled error: fail safely and return false (fail-closed).
+   */
+  function isElementVisible(element, track) {
+    if (!element || !element.visible_when) {
+      return true;
+    }
+
+    try {
+      const rule = element.visible_when;
+      if (typeof rule !== 'object' || rule === null) {
+        return false;
+      }
+
+      if (typeof rule.expression === 'string') {
+        if (!track || !track.expression || typeof track.expression !== 'object') {
+          return false;
+        }
+
+        const actualVal = track.expression[rule.expression];
+        if (rule.equals !== undefined) {
+          return actualVal === rule.equals;
+        }
+
+        return Boolean(actualVal);
+      }
+
+      return false;
+    } catch (err) {
+      return false;
     }
   }
 
@@ -543,6 +590,10 @@
 
       // Render each configured element in the active effect
       for (const el of activeConfig.elements) {
+        if (!isElementVisible(el, track)) {
+          continue;
+        }
+
         const img = getOrLoadAsset(el.asset);
         if (!img) continue; // Asset still loading
 

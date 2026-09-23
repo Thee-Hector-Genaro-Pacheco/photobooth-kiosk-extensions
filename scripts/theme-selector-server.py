@@ -54,6 +54,8 @@ try:
     process_stream_frame = ar_engine.process_stream_frame
     AR_EFFECT_CONFIGS = ar_engine.AR_EFFECT_CONFIGS
     DEFAULT_MODEL_PATH = ar_engine.DEFAULT_MODEL_PATH
+    DEFAULT_FACEMESH_PATH = getattr(ar_engine, "DEFAULT_FACEMESH_PATH", REPO_ROOT / "models" / "face_mesh.onnx")
+    ExpressionEngine = getattr(ar_engine, "ExpressionEngine", None)
     save_ar_state = getattr(ar_engine, "save_ar_state", None)
     get_ar_state = getattr(ar_engine, "get_ar_state", None)
 except Exception as err:
@@ -62,6 +64,8 @@ except Exception as err:
     process_stream_frame = None
     AR_EFFECT_CONFIGS = {}
     DEFAULT_MODEL_PATH = REPO_ROOT / "models" / "face_detection_yunet_2023mar.onnx"
+    DEFAULT_FACEMESH_PATH = REPO_ROOT / "models" / "face_mesh.onnx"
+    ExpressionEngine = None
     save_ar_state = None
     get_ar_state = None
 
@@ -84,7 +88,8 @@ _state = {
 class ARStreamManager:
     """
     Manages background MJPEG acquisition, downscaled YuNet inference,
-    and Server-Sent Events (SSE) distribution to connected browser clients.
+    optional generic facial expression evaluation, and Server-Sent Events (SSE)
+    distribution to connected browser clients.
     Thread-safe and strictly on-demand: only runs when active subscribers exist.
     """
 
@@ -96,6 +101,16 @@ class ARStreamManager:
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._detector: Optional[Any] = None
+        self._expression_engine: Optional[Any] = None
+        if ExpressionEngine is not None and DEFAULT_FACEMESH_PATH.is_file():
+            try:
+                engine = ExpressionEngine(model_path=DEFAULT_FACEMESH_PATH)
+                if engine.is_available():
+                    self._expression_engine = engine
+                else:
+                    sys.stderr.write(f"[ARStreamManager] ExpressionEngine unavailable: {engine.detector.init_error}\n")
+            except Exception as err:
+                sys.stderr.write(f"[ARStreamManager] ExpressionEngine init notice: {err}\n")
         init_state = get_ar_state() if get_ar_state is not None else {}
         self.enabled = bool(init_state.get("enabled", True))
         self.active_effect = str(init_state.get("active_effect", "glasses"))
@@ -171,7 +186,10 @@ class ARStreamManager:
 
                                 t0 = time.perf_counter()
                                 faces, inf_ms, orig_w, orig_h = process_stream_frame(
-                                    self._detector, jpg_bytes, downscale_factor=0.5
+                                    self._detector,
+                                    jpg_bytes,
+                                    downscale_factor=0.5,
+                                    expression_engine=self._expression_engine,
                                 )
                                 total_proc_ms = (time.perf_counter() - t0) * 1000.0
 

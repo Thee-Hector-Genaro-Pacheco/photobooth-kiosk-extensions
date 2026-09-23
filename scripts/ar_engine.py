@@ -32,8 +32,20 @@ except ImportError:
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
 DEFAULT_MODEL_PATH = REPO_ROOT / "models" / "face_detection_yunet_2023mar.onnx"
 AR_STATE_FILE = REPO_ROOT / "ar_state.json"
+
+try:
+    import expression_engine
+    ExpressionEngine = expression_engine.ExpressionEngine
+    DEFAULT_FACEMESH_PATH = expression_engine.DEFAULT_FACEMESH_PATH
+except Exception:
+    ExpressionEngine = None
+    DEFAULT_FACEMESH_PATH = REPO_ROOT / "models" / "face_mesh.onnx"
 
 
 @dataclass
@@ -160,9 +172,11 @@ def process_stream_frame(
     detector: "FaceDetector",
     jpeg_bytes: bytes,
     downscale_factor: float = 0.5,
+    expression_engine: Optional[Any] = None,
 ) -> Tuple[List[Dict[str, Any]], float, int, int]:
     """
     Decode, downscale, and detect faces in a live MJPEG stream frame.
+    Optionally evaluates generic facial expressions (FaceMesh) on detected face ROIs.
     Returns:
       (list_of_normalized_face_transforms, inference_time_ms, orig_w, orig_h)
     """
@@ -183,8 +197,38 @@ def process_stream_frame(
 
     faces, inf_ms = detector.detect(img_det)
 
+    # Optional Expression Detection on active detected faces
+    expr_results: List[Dict[str, Any]] = []
+    if (
+        expression_engine is not None
+        and hasattr(expression_engine, "is_available")
+        and expression_engine.is_available()
+        and len(faces) > 0
+    ):
+        try:
+            scale_x = orig_w / float(det_w)
+            scale_y = orig_h / float(det_h)
+            face_bboxes = [
+                (
+                    float(f.bbox[0]) * scale_x,
+                    float(f.bbox[1]) * scale_y,
+                    float(f.bbox[2]) * scale_x,
+                    float(f.bbox[3]) * scale_y,
+                )
+                for f in faces
+            ]
+            expr_results = expression_engine.process_faces(
+                img_bgr=img_bgr,
+                face_bboxes=face_bboxes,
+                frame_w=orig_w,
+                frame_h=orig_h,
+            )
+        except Exception as err:
+            sys.stderr.write(f"[ar_engine] Expression detection notice: {err}\n")
+            expr_results = []
+
     output_faces: List[Dict[str, Any]] = []
-    for face in faces:
+    for idx, face in enumerate(faces):
         transform = compute_face_transform(face, det_w, det_h)
         face_dict = transform.to_normalized_dict(det_w, det_h)
         face_dict["confidence"] = round(face.confidence, 4)
@@ -194,6 +238,9 @@ def process_stream_frame(
             round(face.bbox[2] / det_w, 5),
             round(face.bbox[3] / det_h, 5),
         ]
+        if idx < len(expr_results):
+            face_dict["expression"] = expr_results[idx].get("expression")
+            face_dict["expression_events"] = expr_results[idx].get("expression_events", [])
         output_faces.append(face_dict)
 
     return output_faces, inf_ms, orig_w, orig_h
@@ -247,6 +294,46 @@ AR_EFFECT_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "offset_along_eyes": 0.0,
                 "offset_along_up": -0.35,           # Shift down along face vector to sit below nose on upper lip
             }
+        ],
+    },
+    "playful_pup": {
+        "name": "Playful Pup",
+        "description": "Puppy ears and nose with a reactive tongue when you open your mouth",
+        "elements": [
+            {
+                "asset": "assets/ar/dog-ears.png",
+                "anchor": "forehead_anchor",
+                "asset_anchor_x": 0.50,
+                "asset_anchor_y": 0.75,
+                "scale_reference": "inter_eye_distance",
+                "scale_factor": 2.50,
+                "offset_along_eyes": 0.0,
+                "offset_along_up": 0.15,
+            },
+            {
+                "asset": "assets/ar/dog-muzzle.png",
+                "anchor": "nose_anchor",
+                "asset_anchor_x": 0.50,
+                "asset_anchor_y": 0.45,
+                "scale_reference": "inter_eye_distance",
+                "scale_factor": 1.40,
+                "offset_along_eyes": 0.0,
+                "offset_along_up": -0.10,
+            },
+            {
+                "asset": "assets/ar/dog-tongue.png",
+                "anchor": "mouth_anchor",
+                "asset_anchor_x": 0.50,
+                "asset_anchor_y": 0.10,
+                "scale_reference": "inter_eye_distance",
+                "scale_factor": 0.85,
+                "offset_along_eyes": 0.0,
+                "offset_along_up": -0.10,
+                "visible_when": {
+                    "expression": "mouth_open",
+                    "equals": True,
+                },
+            },
         ],
     },
 }
