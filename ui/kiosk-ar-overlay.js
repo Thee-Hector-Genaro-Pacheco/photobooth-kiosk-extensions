@@ -387,6 +387,16 @@
           ema(bestTrack.center[1], ry, SMOOTH_ALPHA),
         ];
         bestTrack.interEyeDist = ema(bestTrack.interEyeDist, raw.inter_eye_distance, SMOOTH_ALPHA);
+        if (typeof raw.mouth_width === 'number' && raw.mouth_width > 0) {
+          bestTrack.mouthWidth = typeof bestTrack.mouthWidth === 'number'
+            ? ema(bestTrack.mouthWidth, raw.mouth_width, SMOOTH_ALPHA)
+            : raw.mouth_width;
+        }
+        if (raw.expression && typeof raw.expression.mouth_ratio === 'number') {
+          bestTrack.smoothMouthRatio = typeof bestTrack.smoothMouthRatio === 'number'
+            ? ema(bestTrack.smoothMouthRatio, raw.expression.mouth_ratio, SMOOTH_ALPHA)
+            : raw.expression.mouth_ratio;
+        }
 
         // Smooth roll angle
         let dRoll = raw.roll_angle_deg - bestTrack.rollDeg;
@@ -431,6 +441,10 @@
           rawCenter: [rx, ry],
           center: [rx, ry],
           interEyeDist: raw.inter_eye_distance,
+          mouthWidth: (typeof raw.mouth_width === 'number' && raw.mouth_width > 0) ? raw.mouth_width : null,
+          smoothMouthRatio: (raw.expression && typeof raw.expression.mouth_ratio === 'number')
+            ? raw.expression.mouth_ratio
+            : null,
           rollDeg: raw.roll_angle_deg,
           rollRad: raw.roll_angle_rad,
           anchors: anchorsCopy,
@@ -602,15 +616,46 @@
         const rawAnchorPt = track.anchors[anchorName] || track.center;
         const [anchorScreenX, anchorScreenY] = mapNormalizedPoint(rawAnchorPt, geo, activeGeom);
 
-        // 2. Compute element screen scale proportional to tracked face inter-eye distance
+        // 2. Compute element screen scale proportional to tracked face reference distance
         const cameraScreenWidth = activeGeom
           ? (activeGeom.streamWidth / activeGeom.frameWidth) * geo.width
           : geo.width;
-        const scaleRefDist = track.interEyeDist * cameraScreenWidth;
-        const scaleFactor = typeof el.scale_factor === 'number' ? el.scale_factor : 1.0;
+        let scaleRefDist = track.interEyeDist * cameraScreenWidth;
+        if (el.scale_reference === 'mouth_width' && typeof track.mouthWidth === 'number' && track.mouthWidth > 0) {
+          scaleRefDist = track.mouthWidth * cameraScreenWidth;
+        }
+        const scaleFactor = typeof el.scale_factor === 'number'
+          ? el.scale_factor
+          : (typeof el.width_scale === 'number' ? el.width_scale : 1.0);
         const targetW = Math.max(10, scaleRefDist * scaleFactor);
         const aspect = img.naturalHeight / Math.max(1, img.naturalWidth);
-        const targetH = Math.max(5, targetW * aspect);
+
+        // Compute reactive vertical scale / extension if configured
+        let heightMultiplier = 1.0;
+        if (el.reactive_height && typeof el.reactive_height === 'object') {
+          const rh = el.reactive_height;
+          const exprKey = rh.expression || rh.expression_source || 'mouth_ratio';
+          let mar = null;
+          if (exprKey === 'mouth_ratio') {
+            mar = (typeof track.smoothMouthRatio === 'number')
+              ? track.smoothMouthRatio
+              : (track.expression && typeof track.expression.mouth_ratio === 'number' ? track.expression.mouth_ratio : null);
+          } else if (track.expression && typeof track.expression[exprKey] === 'number') {
+            mar = track.expression[exprKey];
+          }
+
+          if (typeof mar === 'number') {
+            const inMin = typeof rh.input_min === 'number' ? rh.input_min : 0.20;
+            const inMax = typeof rh.input_max === 'number' ? rh.input_max : 0.50;
+            const outMin = typeof rh.min_scale === 'number' ? rh.min_scale : (typeof rh.min_height === 'number' ? rh.min_height : 0.40);
+            const outMax = typeof rh.max_scale === 'number' ? rh.max_scale : (typeof rh.max_height === 'number' ? rh.max_height : 1.25);
+
+            const denom = inMax - inMin;
+            const norm = denom > 1e-4 ? Math.max(0.0, Math.min(1.0, (mar - inMin) / denom)) : 0.0;
+            heightMultiplier = outMin + norm * (outMax - outMin);
+          }
+        }
+        const targetH = Math.max(5, targetW * aspect * heightMultiplier);
 
         // 3. Compute rotation and coordinate orientation
         let roll = track.rollRad;

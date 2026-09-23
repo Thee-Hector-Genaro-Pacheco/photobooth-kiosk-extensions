@@ -93,6 +93,7 @@ class FaceTransform:
     mouth_anchor: Tuple[float, float]      # Mouth center anchor
     unit_vec_eyes: Tuple[float, float]     # Unit vector pointing right along eye line
     unit_vec_up: Tuple[float, float]       # Unit vector pointing up towards top of head
+    mouth_width: float = 0.0               # Mouth corner-to-corner distance in pixels
 
     def to_normalized_dict(self, img_w: int, img_h: int) -> Dict[str, Any]:
         """Convert all coordinates and anchors to normalized [0.0, 1.0] viewport space."""
@@ -101,6 +102,7 @@ class FaceTransform:
         return {
             "center_eyes": [round(self.center_eyes[0] / w, 5), round(self.center_eyes[1] / h, 5)],
             "inter_eye_distance": round(self.inter_eye_distance / w, 5),
+            "mouth_width": round(self.mouth_width / w, 5),
             "roll_angle_rad": round(self.roll_angle_rad, 4),
             "roll_angle_deg": round(self.roll_angle_deg, 2),
             "face_scale": round(self.face_scale, 5),
@@ -150,9 +152,12 @@ def compute_face_transform(face: FaceLandmarks, img_w: int, img_h: int) -> FaceT
     forehead_x = center_x + u_up_x * (inter_eye_dist * 0.75)
     forehead_y = center_y + u_up_y * (inter_eye_dist * 0.75)
 
-    # Mouth center
-    mx = (face.right_mouth[0] + face.left_mouth[0]) / 2.0
-    my = (face.right_mouth[1] + face.left_mouth[1]) / 2.0
+    # Mouth center and width
+    rmx, rmy = face.right_mouth
+    lmx, lmy = face.left_mouth
+    mx = (rmx + lmx) / 2.0
+    my = (rmy + lmy) / 2.0
+    mouth_w = math.hypot(lmx - rmx, lmy - rmy)
 
     return FaceTransform(
         center_eyes=(center_x, center_y),
@@ -165,6 +170,7 @@ def compute_face_transform(face: FaceLandmarks, img_w: int, img_h: int) -> FaceT
         mouth_anchor=(mx, my),
         unit_vec_eyes=(u_eyes_x, u_eyes_y),
         unit_vec_up=(u_up_x, u_up_y),
+        mouth_width=mouth_w,
     )
 
 
@@ -311,6 +317,27 @@ AR_EFFECT_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "offset_along_up": 0.15,
             },
             {
+                "asset": "assets/ar/dog-tongue.png",
+                "anchor": "mouth_anchor",
+                "asset_anchor_x": 0.50,
+                "asset_anchor_y": 0.05,
+                "scale_reference": "mouth_width",
+                "scale_factor": 1.05,
+                "offset_along_eyes": 0.0,
+                "offset_along_up": 0.0,
+                "visible_when": {
+                    "expression": "mouth_open",
+                    "equals": True,
+                },
+                "reactive_height": {
+                    "expression": "mouth_ratio",
+                    "input_min": 0.20,
+                    "input_max": 0.50,
+                    "min_scale": 0.40,
+                    "max_scale": 1.25,
+                },
+            },
+            {
                 "asset": "assets/ar/dog-muzzle.png",
                 "anchor": "nose_anchor",
                 "asset_anchor_x": 0.50,
@@ -319,20 +346,6 @@ AR_EFFECT_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "scale_factor": 1.40,
                 "offset_along_eyes": 0.0,
                 "offset_along_up": -0.10,
-            },
-            {
-                "asset": "assets/ar/dog-tongue.png",
-                "anchor": "mouth_anchor",
-                "asset_anchor_x": 0.50,
-                "asset_anchor_y": 0.10,
-                "scale_reference": "inter_eye_distance",
-                "scale_factor": 1.05,
-                "offset_along_eyes": 0.0,
-                "offset_along_up": -0.10,
-                "visible_when": {
-                    "expression": "mouth_open",
-                    "equals": True,
-                },
             },
         ],
     },
@@ -460,14 +473,20 @@ class ARRenderer:
 
                 # Compute target width based on scale reference
                 scale_ref = element.get("scale_reference", "inter_eye_distance")
-                if scale_ref == "inter_eye_distance":
-                    target_w = int(round(transform.inter_eye_distance * element.get("scale_factor", 1.0)))
+                scale_factor = float(element.get("scale_factor", element.get("width_scale", 1.0)))
+                if scale_ref == "mouth_width" and transform.mouth_width > 0:
+                    target_w = int(round(transform.mouth_width * scale_factor))
+                elif scale_ref == "inter_eye_distance":
+                    target_w = int(round(transform.inter_eye_distance * scale_factor))
                 else:
                     target_w = int(round(transform.inter_eye_distance * 2.0))
 
                 target_w = max(10, target_w)
                 aspect = asset.height / max(1, asset.width)
-                target_h = max(5, int(round(target_w * aspect)))
+                height_mult = 1.0
+                if "reactive_height" in element and isinstance(element["reactive_height"], dict):
+                    height_mult = float(element["reactive_height"].get("max_scale", 1.0))
+                target_h = max(5, int(round(target_w * aspect * height_mult)))
 
                 # Normalized asset anatomical anchor (defaults to geometric center [0.5, 0.5])
                 asset_anchor_x = float(element.get("asset_anchor_x", 0.5))
