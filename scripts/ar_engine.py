@@ -326,7 +326,7 @@ AR_EFFECT_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "asset_anchor_x": 0.50,
                 "asset_anchor_y": 0.10,
                 "scale_reference": "inter_eye_distance",
-                "scale_factor": 0.85,
+                "scale_factor": 1.05,
                 "offset_along_eyes": 0.0,
                 "offset_along_up": -0.10,
                 "visible_when": {
