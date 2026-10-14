@@ -5,6 +5,7 @@
 *.db
 *.log
 secrets/
+SupabaseDeliveryConfig.plist
 media/
 private/
 config/config.json
@@ -13,3 +14,10 @@ scratch/
 ui/kiosk-ar-overlay.js.bak.*
 __pycache__/
 *.pyc
+certs/
+*.pem
+*.key
+*.p8
+*.p12
+*.mobileprovision
+*service-account*.json
