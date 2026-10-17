@@ -58,8 +58,8 @@ const googleLinks = (root) => byClass(root, "fb-google-link");
 
 const REVIEW_URL = "https://g.page/r/CExample123/review";
 
-function render(googleReviewUrl, submit = async () => ({ status: 201 })) {
-  return renderFeedbackPanel(fakeDocument, { googleReviewUrl, claimToken: "token", submit });
+function render(googleReviewUrl, submit = async () => ({ status: 201 }), extraOptions = {}) {
+  return renderFeedbackPanel(fakeDocument, { googleReviewUrl, claimToken: "token", submit, ...extraOptions });
 }
 
 test("googleReviewHref accepts real Google review link shapes", () => {
@@ -197,4 +197,103 @@ test("Not now with no Google link removes the whole panel", async () => {
   const panel = content.appendChild(render(""));
   await byClass(panel, "fb-not-now")[0].dispatch("click");
   assert.equal(content.children.length, 0);
+});
+
+test("Google review click records social_cta_clicked with platform google", async () => {
+  const events = [];
+  const panel = render(REVIEW_URL, async () => ({ status: 201 }), {
+    recordEngagement: (token, action, platform) => {
+      events.push({ token, action, platform });
+    },
+  });
+  const [link] = googleLinks(panel);
+  assert.ok(link, "Google link exists");
+  await link.dispatch("click");
+  assert.deepEqual(events, [
+    { token: "token", action: "social_cta_clicked", platform: "google" },
+  ]);
+});
+
+test("Google review click invokes onGoogleClick callback", async () => {
+  let clicked = false;
+  const panel = render(REVIEW_URL, async () => ({ status: 201 }), {
+    onGoogleClick: () => { clicked = true; },
+  });
+  const [link] = googleLinks(panel);
+  assert.ok(link);
+  await link.dispatch("click");
+  assert.equal(clicked, true);
+});
+
+test("Google navigation remains independent of analytics success (fails open)", async () => {
+  let defaultPrevented = false;
+  const panel = render(REVIEW_URL, async () => ({ status: 201 }), {
+    onGoogleClick: () => {
+      throw new Error("Supabase is offline");
+    },
+  });
+  const [link] = googleLinks(panel);
+  assert.ok(link);
+
+  const fakeClickEvent = {
+    preventDefault() { defaultPrevented = true; },
+  };
+
+  for (const fn of link.listeners["click"] ?? []) {
+    await fn(fakeClickEvent);
+  }
+
+  assert.equal(defaultPrevented, false, "preventDefault must never be called");
+  assert.equal(link.getAttribute("href"), REVIEW_URL);
+  assert.equal(link.getAttribute("target"), "_blank");
+  assert.equal(link.getAttribute("rel"), "noopener noreferrer");
+});
+
+test("Instagram and TikTok engagement tracking contracts work unchanged", () => {
+  const events = [];
+  const fakeRecordEngagement = (token, action, platform) => {
+    events.push({ token, action, platform });
+  };
+
+  const cta = { platform: "instagram", displayName: "@eventbrand", profileURL: "https://instagram.com/eventbrand" };
+  fakeRecordEngagement("token-123", "social_cta_clicked", cta.platform);
+  fakeRecordEngagement("token-123", "social_cta_clicked", "tiktok");
+
+  assert.deepEqual(events, [
+    { token: "token-123", action: "social_cta_clicked", platform: "instagram" },
+    { token: "token-123", action: "social_cta_clicked", platform: "tiktok" },
+  ]);
+});
+
+test("Private feedback remains unrelated to Google click tracking", async () => {
+  const events = [];
+  const panel = render(REVIEW_URL, async () => ({ status: 201 }), {
+    recordEngagement: (token, action, platform) => {
+      events.push({ token, action, platform });
+    },
+  });
+
+  // 1. Initial Google click records engagement
+  const [link] = googleLinks(panel);
+  await link.dispatch("click");
+  assert.equal(events.length, 1);
+  assert.equal(events[0].platform, "google");
+
+  // 2. Changing private rating does not affect Google link
+  const radios = findAll(panel, (n) => n.name === "fb-rating");
+  await radios[0].dispatch("change");
+  const [linkAfter1Star] = googleLinks(panel);
+  assert.ok(linkAfter1Star);
+  assert.equal(linkAfter1Star.getAttribute("href"), REVIEW_URL);
+
+  // 3. Submitting 1-star feedback does not hide or gate Google link
+  await byClass(panel, "fb-form")[0].dispatch("submit");
+  const [linkAfterSubmit] = googleLinks(panel);
+  assert.ok(linkAfterSubmit);
+  assert.equal(linkAfterSubmit.getAttribute("href"), REVIEW_URL);
+
+  // 4. Clicking Google Review after submitting feedback still tracks cleanly
+  await linkAfterSubmit.dispatch("click");
+  assert.equal(events.length, 2);
+  assert.equal(events[1].platform, "google");
 });

@@ -282,7 +282,7 @@
     // it's empty or not a Google URL, the Google review button is simply not
     // shown. It is shown to every guest whenever it is set, regardless of
     // their private rating (see feedback.js).
-    const GOOGLE_REVIEW_URL = "";
+    const GOOGLE_REVIEW_URL = "https://g.page/r/CS1ea2lOBxb1ECE/review";
 
     function claimTokenFromPath() {
       // Expected path: /s/<claim-token>
@@ -338,6 +338,8 @@
           googleReviewUrl: GOOGLE_REVIEW_URL,
           claimToken: token,
           submit: submitFeedback,
+          onGoogleClick: () => recordEngagement(token, "social_cta_clicked", "google"),
+          recordEngagement,
         });
         document.getElementById("content").appendChild(panel);
       } catch (err) {

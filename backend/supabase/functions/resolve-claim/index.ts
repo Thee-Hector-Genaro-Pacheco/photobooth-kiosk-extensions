@@ -13,11 +13,11 @@
 // IDs, no storage paths, no session/event identifiers.
 //
 // Input JSON: { claimToken: string }
-// Output JSON (200): { status: "ready", expiresAt: string, media: [{ kind, mimeType, downloadURL }] }
+// Output JSON (200): { status: "ready", expiresAt: string, media: [{ kind, mimeType, downloadURL }], socialCTA: { platform, displayName, profileURL, message } | null }
 // Output JSON (404): { status: "not_found" }
 // Output JSON (410): { status: "expired" }
 //
-// CORS: this is the one function in this backend a browser calls
+// CORS: this is one of the functions in this backend a browser calls
 // directly, so it needs explicit CORS handling. `Access-Control-Allow-
 // Origin: *` is used deliberately, not by oversight: authorization here
 // comes from the bearer claim token in the request body, not from the
@@ -26,11 +26,12 @@
 // you'd rather pin this to the claim page's exact domain once it's
 // chosen, replace "*" below with that origin.
 //
-// Deliberately does NOT return a SocialCTA yet — that data lives only in
-// the iPad app's local EventConfiguration today and isn't synced to this
-// backend. Wiring it through (e.g. an event-level table, or passing it
-// into create-delivery-session to store alongside the session) is a
-// follow-up, not implemented in this pass.
+// `socialCTA` is the snapshot captured by create-delivery-session at the
+// moment this session was created (see 0003_delivery_session_social_cta.sql
+// and BoothSession.socialCTASnapshot on the client) — `null` when the
+// event had no CTA configured. Never gates access to `media` below; the
+// claim page must render/download media identically whether this is
+// present or not.
 
 import { getServiceClient, sha256Hex } from "../_shared/boothAuth.ts";
 
@@ -65,7 +66,9 @@ Deno.serve(async (req) => {
 
     const { data: session, error: sessionError } = await supabase
       .from("delivery_sessions")
-      .select("id, status, expires_at")
+      .select(
+        "id, status, expires_at, social_cta_platform, social_cta_display_name, social_cta_profile_url, social_cta_message",
+      )
       .eq("claim_token_hash", claimTokenHash)
       .maybeSingle();
 
@@ -103,8 +106,18 @@ Deno.serve(async (req) => {
       media.push({ kind: row.media_kind, mimeType: row.mime_type, downloadURL: signed.signedUrl });
     }
 
+    // Guest-safe fields only, same as `media` above — no internal ids.
+    const socialCTA = session.social_cta_platform
+      ? {
+        platform: session.social_cta_platform,
+        displayName: session.social_cta_display_name,
+        profileURL: session.social_cta_profile_url,
+        message: session.social_cta_message,
+      }
+      : null;
+
     return new Response(
-      JSON.stringify({ status: "ready", expiresAt: session.expires_at, media }),
+      JSON.stringify({ status: "ready", expiresAt: session.expires_at, media, socialCTA }),
       { status: 200, headers: jsonHeaders },
     );
   } catch (err) {

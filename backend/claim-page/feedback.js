@@ -85,7 +85,14 @@ function visuallyHidden(doc, text) {
  * Builds the panel. `submit(payload)` must resolve to { status } (the HTTP
  * status) or reject on network failure; index.html passes a fetch wrapper.
  */
-export function renderFeedbackPanel(doc, { googleReviewUrl, claimToken, submit }) {
+export function renderFeedbackPanel(doc, {
+  googleReviewUrl,
+  claimToken,
+  submit,
+  onGoogleClick,
+  onGoogleReviewClick,
+  recordEngagement,
+}) {
   const panel = el(doc, "section", { className: "fb-panel", attrs: { "aria-label": "Share your experience" } });
 
   const reviewHref = googleReviewHref(googleReviewUrl);
@@ -99,6 +106,20 @@ export function renderFeedbackPanel(doc, { googleReviewUrl, claimToken, submit }
     link.appendChild(el(doc, "span", { text: "★", attrs: { "aria-hidden": "true" } }));
     link.appendChild(doc.createTextNode(" Leave a Google Review"));
     link.appendChild(visuallyHidden(doc, " (opens Google in a new tab)"));
+
+    const handleGoogleClick = onGoogleClick || onGoogleReviewClick;
+    link.addEventListener("click", () => {
+      try {
+        if (typeof handleGoogleClick === "function") {
+          handleGoogleClick();
+        } else if (typeof recordEngagement === "function" && claimToken) {
+          recordEngagement(claimToken, "social_cta_clicked", "google");
+        }
+      } catch {
+        // Analytics failure must never block navigation
+      }
+    });
+
     google.appendChild(link);
     panel.appendChild(google);
   }

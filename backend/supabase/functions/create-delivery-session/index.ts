@@ -1,13 +1,14 @@
 // backend/supabase/functions/create-delivery-session/index.ts
 //
 // PRIVILEGED — called only by the native iPad app (SupabaseDeliveryService.
-// swift), never by a browser. Two independent checks gate this function:
-// 1. Supabase's own platform gate (a valid publishable-key Authorization
-//    header — enforced by the platform before this code even runs, since
-//    this function is deployed WITHOUT --no-verify-jwt).
-// 2. This app's own booth-device check (verifyBoothDevice) — the
-//    publishable key is public, so it is deliberately NOT sufficient on
-//    its own to reach the code below that check.
+// swift), never by a browser. Deployed with --no-verify-jwt, same as every
+// other function in this backend: relying on Supabase's own platform JWT/
+// apikey gate here was tried and caused booth authentication failures
+// (403s) in practice, so it's deliberately bypassed. The only real access
+// control is this app's own booth-device check (verifyBoothDevice) —
+// X-Booth-Installation-ID / X-Booth-Token, checked against `booth_devices`
+// — enforced in this function's own code below. The publishable key the
+// client sends is not what gates this function; verifyBoothDevice is.
 //
 // Creates the delivery_sessions/delivery_media rows and returns one signed
 // Storage upload URL per media item.
@@ -15,11 +16,23 @@
 // Input JSON (camelCase — must match SupabaseDeliveryService.swift exactly):
 //   {
 //     eventID: string, localSessionID: string, claimToken: string,
-//     expiresAt: string (ISO 8601),
-//     media: [{ mediaID: string, kind: "photo" | "loopVideo", mimeType: string }]
+//     expiresAt?: string (ISO 8601; a request only, see expiry.ts),
+//     media: [{ mediaID: string, kind: "photo" | "loopVideo", mimeType: string }],
+//     socialCTA: { platform: string, displayName: string, profileURL: string, message: string } | null
 //   }
 // Output JSON:
-//   { deliverySessionID: string, uploads: [{ mediaID: string, uploadURL: string }] }
+//   { deliverySessionID: string, expiresAt: string, uploads: [{ mediaID: string, uploadURL: string }] }
+//
+// `expiresAt` is decided here, not by the client: resolveExpiresAt keeps the
+// requested value only if it's in the future and within MAX_RETENTION_DAYS,
+// otherwise DEFAULT_RETENTION_DAYS. The stored value is echoed back.
+//
+// `socialCTA` is a snapshot of the event's SocialCTA at the moment this
+// session was created (see BoothSession.socialCTASnapshot on the client) —
+// optional, and its absence never fails this call. Only the four known
+// fields are ever read off the client-supplied object and only after
+// validation; nothing from it is ever spread directly into a database
+// insert, so a client can't smuggle arbitrary columns/values through it.
 //
 // Object paths are built ONLY from server-validated UUIDs
 // (events/<eventID>/sessions/<localSessionID>/<mediaID>.<ext>) — eventID,
@@ -32,12 +45,29 @@
 // This is a native-client-only endpoint, so no browser CORS handling is
 // needed (CORS is a browser concept; URLSession doesn't send/require it).
 
-import { getServiceClient, isValidUUID, verifyBoothDevice } from "../_shared/boothAuth.ts";
+import {
+  getServiceClient,
+  isValidSocialCTAPlatform,
+  isValidUUID,
+  sha256Hex,
+  verifyBoothDevice,
+} from "../_shared/boothAuth.ts";
+import {
+  DEFAULT_RETENTION_DAYS,
+  MAX_RETENTION_DAYS,
+  resolveExpiresAt,
+} from "./expiry.ts";
+
+export { DEFAULT_RETENTION_DAYS, MAX_RETENTION_DAYS, resolveExpiresAt };
 
 const BUCKET = "booth-media";
 
 function extensionFor(mimeType: string): string {
   switch (mimeType) {
+    // The app now records Loop as video/mp4 (see LoopVideoWriter.swift) —
+    // video/quicktime is kept mapped too for any already-created sessions.
+    case "video/mp4":
+      return "mp4";
     case "video/quicktime":
       return "mov";
     case "image/jpeg":
@@ -65,7 +95,7 @@ Deno.serve(async (req) => {
     if (
       !isValidUUID(eventID) || !isValidUUID(localSessionID) ||
       typeof claimToken !== "string" || claimToken.length < 16 ||
-      typeof expiresAt !== "string" || !Array.isArray(media) || media.length === 0
+      !Array.isArray(media) || media.length === 0
     ) {
       return new Response(JSON.stringify({ error: "Invalid request body" }), { status: 400 });
     }
@@ -75,11 +105,51 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { sha256Hex } = await import("../_shared/boothAuth.ts");
+    // Optional social CTA snapshot — validated field-by-field and never
+    // spread directly from the request body. Absence (null/undefined) is
+    // completely normal and never rejected.
+    let socialCTAColumns = {
+      social_cta_platform: null as string | null,
+      social_cta_display_name: null as string | null,
+      social_cta_profile_url: null as string | null,
+      social_cta_message: null as string | null,
+    };
+    if (body?.socialCTA != null) {
+      const cta = body.socialCTA;
+      const platform = cta?.platform;
+      const displayName = cta?.displayName;
+      const profileURL = cta?.profileURL;
+      const message = cta?.message;
+      if (
+        !isValidSocialCTAPlatform(platform) ||
+        typeof displayName !== "string" || displayName.length === 0 || displayName.length > 200 ||
+        typeof profileURL !== "string" || profileURL.length === 0 || profileURL.length > 500 ||
+        typeof message !== "string" || message.length > 500
+      ) {
+        return new Response(JSON.stringify({ error: "Invalid socialCTA" }), { status: 400 });
+      }
+      let parsedURL: URL;
+      try {
+        parsedURL = new URL(profileURL);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid socialCTA profileURL" }), { status: 400 });
+      }
+      if (parsedURL.protocol !== "https:") {
+        return new Response(JSON.stringify({ error: "Invalid socialCTA profileURL" }), { status: 400 });
+      }
+      socialCTAColumns = {
+        social_cta_platform: platform,
+        social_cta_display_name: displayName,
+        social_cta_profile_url: parsedURL.toString(),
+        social_cta_message: message,
+      };
+    }
+
     // Only the hash is stored — the plaintext claimToken is the guest's
     // bearer secret (embedded in the QR code) and is never written to the
     // database.
     const claimTokenHash = await sha256Hex(claimToken);
+    const serverExpiresAt = resolveExpiresAt(expiresAt);
 
     const { data: session, error: sessionError } = await supabase
       .from("delivery_sessions")
@@ -88,7 +158,8 @@ Deno.serve(async (req) => {
         event_id: eventID,
         claim_token_hash: claimTokenHash,
         status: "preparing",
-        expires_at: expiresAt,
+        expires_at: serverExpiresAt,
+        ...socialCTAColumns,
       })
       .select("id")
       .single();
@@ -131,7 +202,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ deliverySessionID: session.id, uploads }),
+      JSON.stringify({ deliverySessionID: session.id, expiresAt: serverExpiresAt, uploads }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   } catch (err) {
