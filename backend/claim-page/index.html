@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Your Photo Booth Media</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #05060a;
+      color: rgba(255, 255, 255, 0.94);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 24px;
+    }
+    .card { max-width: 420px; width: 100%; text-align: center; }
+    .label {
+      font-size: 12px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.4);
+      margin-bottom: 24px;
+    }
+    .media {
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      margin-bottom: 16px;
+    }
+    .media img, .media video { width: 100%; display: block; }
+    .download-button {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin: 12px 0;
+      border-radius: 999px;
+      border: none;
+      background: rgba(97, 225, 242, 0.16);
+      color: #61e1f2;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .expiration { font-size: 13px; color: rgba(255, 255, 255, 0.4); margin-top: 16px; }
+    .error { color: rgba(255, 255, 255, 0.7); font-size: 15px; }
+
+    .social-card {
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(97, 225, 242, 0.18);
+      padding: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .social-eyebrow {
+      font-size: 11px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: rgba(97, 225, 242, 0.85);
+      margin-bottom: 10px;
+    }
+    .social-message {
+      font-size: 14px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.82);
+      margin: 0 0 16px;
+    }
+    .social-primary {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin-bottom: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(97, 225, 242, 0.4);
+      background: rgba(97, 225, 242, 0.16);
+      color: #61e1f2;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+    .social-secondary {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: transparent;
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .social-disclosure {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+    }
+    .tag-hint {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-top: 4px;
+      margin-bottom: 4px;
+    }
+
+    /* Post-download panel (feedback.js). Below the media, never a modal. */
+    .fb-panel {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      text-align: left;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .fb-panel { animation: fb-in 0.35s ease-out; }
+      @keyframes fb-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    }
+    .fb-heading { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+    .fb-google {
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(97, 225, 242, 0.18);
+      padding: 20px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .fb-google-link {
+      display: block;
+      min-height: 48px;
+      padding: 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(97, 225, 242, 0.4);
+      background: rgba(97, 225, 242, 0.16);
+      color: #61e1f2;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .fb-fieldset { border: 0; margin: 0 0 20px; padding: 0; min-width: 0; }
+    .fb-legend { display: block; font-size: 15px; color: rgba(255, 255, 255, 0.82); margin-bottom: 10px; padding: 0; }
+    .fb-optional, .fb-hint { color: rgba(255, 255, 255, 0.55); }
+    .fb-hint { font-size: 13px; margin: 6px 0 0; }
+    .fb-sr, .fb-sr-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .fb-stars { display: flex; gap: 4px; }
+    .fb-star {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      font-size: 32px;
+      line-height: 1;
+      color: #61e1f2;
+      cursor: pointer;
+    }
+    .fb-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .fb-chip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.82);
+      cursor: pointer;
+    }
+    .fb-chip input:checked + span::before { content: "\2713\00a0"; }
+    .fb-chip:has(input:checked) {
+      border-color: #61e1f2;
+      background: rgba(97, 225, 242, 0.16);
+      color: #fff;
+    }
+    .fb-star:focus-within, .fb-chip:focus-within,
+    .fb-google-link:focus-visible, .fb-send:focus-visible, .fb-not-now:focus-visible,
+    .fb-comment:focus-visible, .fb-checkbox:focus-visible {
+      outline: 2px solid #61e1f2;
+      outline-offset: 2px;
+    }
+    .fb-comment {
+      display: block;
+      width: 100%;
+      min-height: 88px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.04);
+      color: inherit;
+      font: inherit;
+      font-size: 16px; /* 16px stops iOS Safari zooming on focus */
+      resize: vertical;
+    }
+    .fb-count { text-align: right; margin-bottom: 16px; }
+    .fb-consent { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.45; cursor: pointer; }
+    .fb-checkbox { flex: none; width: 22px; height: 22px; margin: 0; accent-color: #61e1f2; }
+    .fb-consent-note { margin: 6px 0 0 34px; }
+    .fb-error { min-height: 20px; margin: 12px 0 0; font-size: 14px; color: #ffb4a8; }
+    .fb-error:empty { min-height: 0; }
+    .fb-send {
+      display: block;
+      width: 100%;
+      min-height: 48px;
+      margin-top: 12px;
+      border-radius: 999px;
+      border: none;
+      background: rgba(97, 225, 242, 0.16);
+      color: #61e1f2;
+      font: inherit;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .fb-send:disabled { opacity: 0.6; cursor: default; }
+    .fb-not-now {
+      display: block;
+      width: 100%;
+      min-height: 44px;
+      margin-top: 8px;
+      border: none;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.62);
+      font: inherit;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .fb-done { font-size: 15px; color: rgba(255, 255, 255, 0.82); margin: 0; }
+    /* Focus moves here so screen readers announce it; it isn't interactive. */
+    .fb-done:focus { outline: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="label">PHOTO BOOTH</div>
+    <div id="content">Loading your media&hellip;</div>
+  </div>
+
+  <script type="module">
+    import { renderFeedbackPanel } from "/feedback.js";
+
+    // Filled in by Hector at deploy time — see backend/supabase/README.md.
+    // Both values are public/publishable, safe for a static page: the
+    // Only the functions base URL — a public address, not a credential.
+    // resolve-claim is deployed with --no-verify-jwt (see backend/supabase/
+    // README.md) because its real authorization is the claim token itself,
+    // not a Supabase key, so this page deliberately does NOT need or embed
+    // the publishable key at all.
+    const SUPABASE_FUNCTIONS_BASE_URL = "https://cqlrzijqezowffoxeoxo.supabase.co/functions/v1";
+
+    // Pacific Horizon Labs' own TikTok. Unlike the Instagram CTA below
+    // (per-event data from resolve-claim's `socialCTA`), this is a fixed,
+    // always-the-same-account addition per explicit request — not
+    // event-configurable, not stored in delivery_sessions. The backend's
+    // engagement platform allowlist (isValidSocialCTAPlatform /
+    // engagement_events' CHECK constraint) already includes "tiktok", so
+    // no backend change was needed to record clicks on it.
+    const TIKTOK_HANDLE = "@pacifichorizonlabs";
+    const TIKTOK_URL = "https://www.tiktok.com/@pacifichorizonlabs";
+
+    // Direct Google review link for Pacific Horizon Labs' Business Profile,
+    // e.g. "https://g.page/r/<id>/review" (Business Profile -> "Ask for
+    // reviews" -> copy link). Leave empty until the real link exists: while
+    // it's empty or not a Google URL, the Google review button is simply not
+    // shown. It is shown to every guest whenever it is set, regardless of
+    // their private rating (see feedback.js).
+    const GOOGLE_REVIEW_URL = "";
+
+    function claimTokenFromPath() {
+      // Expected path: /s/<claim-token>
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      return parts.length >= 2 ? parts[parts.length - 1] : parts[0];
+    }
+
+    async function resolveClaim(token) {
+      const response = await fetch(`${SUPABASE_FUNCTIONS_BASE_URL}/resolve-claim`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ claimToken: token }),
+      });
+      return { ok: response.ok, status: response.status, body: await response.json() };
+    }
+
+    // Fire-and-forget engagement tracking. This must NEVER be able to block
+    // or break access to the guest's media — any failure here (network,
+    // endpoint down, unexpected response) is swallowed silently. `keepalive`
+    // lets the request finish even if the guest immediately navigates away
+    // (e.g. tapping the Instagram CTA).
+    function recordEngagement(claimToken, action, platform) {
+      try {
+        fetch(`${SUPABASE_FUNCTIONS_BASE_URL}/record-engagement`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ claimToken, action, platform: platform || undefined }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch (err) {
+        // Analytics must never take down the claim page.
+      }
+    }
+
+    async function submitFeedback(payload) {
+      const response = await fetch(`${SUPABASE_FUNCTIONS_BASE_URL}/submit-feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      return { status: response.status };
+    }
+
+    // Shown once, below the media, after the guest's first Save / Share
+    // tap. Purely additive: it never blocks, delays, or replaces the save
+    // itself, and a failure building it is swallowed.
+    let feedbackRevealed = false;
+    function revealFeedbackPanel(token) {
+      if (feedbackRevealed) return;
+      feedbackRevealed = true;
+      try {
+        const panel = renderFeedbackPanel(document, {
+          googleReviewUrl: GOOGLE_REVIEW_URL,
+          claimToken: token,
+          submit: submitFeedback,
+        });
+        document.getElementById("content").appendChild(panel);
+      } catch (err) {
+        // Feedback must never take down the claim page.
+      }
+    }
+
+    // `cta` is the socialCTA object resolve-claim returns (platform,
+    // displayName, profileURL, message) — entirely event-configured, never
+    // hardcoded to any one brand/account here. Following is never a
+    // prerequisite for anything below this card.
+    function renderSocialCard(cta, token) {
+      const card = document.createElement("div");
+      card.className = "social-card";
+
+      const eyebrow = document.createElement("div");
+      eyebrow.className = "social-eyebrow";
+      eyebrow.textContent = "Your photo is ready";
+      card.appendChild(eyebrow);
+
+      if (cta.message) {
+        const message = document.createElement("p");
+        message.className = "social-message";
+        message.textContent = cta.message;
+        card.appendChild(message);
+      }
+
+      const primary = document.createElement("a");
+      primary.className = "social-primary";
+      primary.href = cta.profileURL;
+      primary.target = "_blank";
+      primary.rel = "noopener";
+      primary.textContent = `Follow ${cta.displayName}`;
+      primary.addEventListener("click", () => {
+        recordEngagement(token, "social_cta_clicked", cta.platform);
+      });
+      card.appendChild(primary);
+
+      // Fixed TikTok CTA, same .social-primary styling as the Instagram
+      // button above so the two read as a matched pair (identical size/
+      // weight/color, same optional-follow framing) — only skipped in the
+      // unlikely case this event's own configured CTA already IS TikTok,
+      // so the two buttons never duplicate the same destination.
+      if (cta.platform !== "tiktok") {
+        const tiktok = document.createElement("a");
+        tiktok.className = "social-primary";
+        tiktok.href = TIKTOK_URL;
+        tiktok.target = "_blank";
+        tiktok.rel = "noopener";
+        tiktok.textContent = `Follow ${TIKTOK_HANDLE} on TikTok`;
+        tiktok.addEventListener("click", () => {
+          recordEngagement(token, "social_cta_clicked", "tiktok");
+        });
+        card.appendChild(tiktok);
+      }
+
+      const secondary = document.createElement("button");
+      secondary.type = "button";
+      secondary.className = "social-secondary";
+      secondary.textContent = "Continue to my photo";
+      secondary.addEventListener("click", () => {
+        document.getElementById("media-section")?.scrollIntoView({ behavior: "smooth" });
+      });
+      card.appendChild(secondary);
+
+      const disclosure = document.createElement("div");
+      disclosure.className = "social-disclosure";
+      disclosure.textContent = "Following is optional.";
+      card.appendChild(disclosure);
+
+      return card;
+    }
+
+    function renderMedia(item) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "media";
+      if (item.kind === "loopVideo") {
+        const video = document.createElement("video");
+        video.src = item.downloadURL;
+        video.controls = true;
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        wrapper.appendChild(video);
+      } else {
+        const img = document.createElement("img");
+        img.src = item.downloadURL;
+        img.alt = "Your photo";
+        wrapper.appendChild(img);
+      }
+      return wrapper;
+    }
+
+    // The app records photos as image/jpeg and Loop as video/mp4 (chosen
+    // specifically because iOS Web Share reliably recognizes it — see
+    // LoopVideoWriter.swift). image/png and video/quicktime are mapped too
+    // for older sessions / future-proofing. Unknown types fall back to no
+    // extension rather than guessing wrong.
+    function extensionForMimeType(mimeType) {
+      switch (mimeType) {
+        case "image/jpeg": return "jpg";
+        case "image/png": return "png";
+        case "video/quicktime": return "mov";
+        case "video/mp4": return "mp4";
+        default: return "";
+      }
+    }
+
+    // Derives a clean filename prefix from the event's own social CTA
+    // display name when one is configured (e.g. "@pacifichorizonlabs" ->
+    // "pacifichorizonlabs") instead of hardcoding any one brand here — a
+    // future wedding/corporate event gets its own branded filename for
+    // free. Falls back to a generic prefix when no CTA is configured.
+    function filenameSlug(displayName) {
+      if (typeof displayName !== "string") return null;
+      const cleaned = displayName
+        .replace(/^@/, "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-+|-+$)/g, "");
+      return cleaned || null;
+    }
+
+    function buildFilename(item, socialCTA) {
+      const slug = filenameSlug(socialCTA && socialCTA.displayName) || "photobooth";
+      const kindWord = item.kind === "loopVideo" ? "loop" : "photo";
+      const ext = extensionForMimeType(item.mimeType);
+      return `${slug}-${kindWord}${ext ? "." + ext : ""}`;
+    }
+
+    // Temporary, opt-in diagnostics for the Loop Save/Share investigation —
+    // never on by default, never logs the signed URL itself (it's a
+    // time-limited bearer credential) or any other secret. Add ?debug=1 to
+    // the claim URL to see stage-by-stage breadcrumbs (D: fetch, E: blob/
+    // File construction, F: canShare, G: share) in the console.
+    const DEBUG_SHARE = new URLSearchParams(window.location.search).get("debug") === "1";
+    function debugLog(stage, detail) {
+      if (!DEBUG_SHARE) return;
+      console.log(`[Share] ${stage}`, detail === undefined ? "" : detail);
+    }
+
+    function canFileShare() {
+      return typeof navigator !== "undefined" &&
+        typeof navigator.share === "function" &&
+        typeof navigator.canShare === "function";
+    }
+
+    // Tier 3 (preserved as-is): the original anchor-download behavior.
+    // Still exactly right for browsers with no Web Share file support at
+    // all (mostly desktop) — unchanged from before this investigation.
+    function fallbackDownload(item, filename) {
+      debugLog("fallback:anchor-download", filename);
+      const a = document.createElement("a");
+      a.href = item.downloadURL;
+      a.download = filename;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    // Tier 2, video-specific: navigates the CURRENT tab (never a new
+    // window/tab — a popup can be blocked once the transient user-
+    // activation from the original tap has lapsed, which it usually has by
+    // this point in the await chain, whereas a same-tab navigation always
+    // fires) directly to the signed video URL. iOS Safari's own native
+    // video player takes over, with its own share icon and long-press
+    // "Save Video" — exactly the guest-facing affordance Web Share's file
+    // API couldn't provide for this file. Anchor-`download` is skipped
+    // here on purpose: WebKit ignores that attribute for cross-origin
+    // resources anyway, so for video it would do nothing different from
+    // just opening it.
+    function openDirectly(item) {
+      debugLog("fallback:open-directly", item.kind);
+      window.location.href = item.downloadURL;
+    }
+
+    // Fetches the already-issued signed URL (never a storage path, never a
+    // new privileged call), wraps it as a File, and hands it to the native
+    // share sheet. Never persists the blob anywhere beyond this call.
+    //
+    // `onUnsupported` fires when this browser has no file-sharing Web
+    // Share API at all (tier 3 candidate — "other browsers"). `onShareFailed`
+    // fires when the API exists but rejects this specific file, or
+    // `share()` itself fails for any reason other than the guest closing
+    // the sheet (tier 2 candidate for video, tier 3 for photos — see
+    // renderDownloadButton). A user-canceled share sheet (AbortError) is
+    // explicitly a no-op, never a failure — canceling must never trigger a
+    // surprise fallback action.
+    async function saveOrShareMedia(item, filename, { onUnsupported, onShareFailed }) {
+      debugLog("start", { kind: item.kind, mimeType: item.mimeType, filename });
+      if (!canFileShare()) {
+        debugLog("H:no-share-api");
+        onUnsupported();
+        return;
+      }
+      try {
+        debugLog("D:fetch:start");
+        const response = await fetch(item.downloadURL);
+        debugLog("D:fetch:result", { ok: response.ok, status: response.status });
+        if (!response.ok) throw new Error(`Fetch failed with status ${response.status}`);
+
+        const blob = await response.blob();
+        debugLog("E:blob", { size: blob.size, type: blob.type });
+        const file = new File([blob], filename, { type: item.mimeType });
+        debugLog("E:file", { name: file.name, type: file.type, size: file.size });
+
+        const shareable = navigator.canShare({ files: [file] });
+        debugLog("F:canShare", shareable);
+        if (!shareable) {
+          onShareFailed();
+          return;
+        }
+
+        debugLog("G:share:start");
+        await navigator.share({ files: [file] });
+        debugLog("G:share:success");
+      } catch (err) {
+        debugLog("error", { name: err && err.name, message: err && err.message });
+        if (err && err.name === "AbortError") {
+          // Guest closed the share sheet themselves — not a failure, and
+          // must not trigger any fallback action.
+          return;
+        }
+        onShareFailed();
+      }
+    }
+
+    function renderDownloadButton(item, token, socialCTA) {
+      const filename = buildFilename(item, socialCTA);
+      const isLoop = item.kind === "loopVideo";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "download-button";
+      button.textContent = isLoop ? "SAVE / SHARE LOOP" : "SAVE / SHARE PHOTO";
+      button.addEventListener("click", () => {
+        // A tap here is what "download_clicked" means for funnel purposes
+        // — fired on intent, never implying the browser actually finished
+        // saving the file (it can't reliably know that either way).
+        recordEngagement(token, "download_clicked");
+        void saveOrShareMedia(item, filename, {
+          onUnsupported: () => fallbackDownload(item, filename),
+          // Photos already work reliably via anchor-download (verified in
+          // production), so they keep that as their only fallback. Loop
+          // gets the video-specific "open directly" tier first.
+          onShareFailed: isLoop ? () => openDirectly(item) : () => fallbackDownload(item, filename),
+        });
+        revealFeedbackPanel(token);
+      });
+      return button;
+    }
+
+    async function main() {
+      const content = document.getElementById("content");
+      const token = claimTokenFromPath();
+      if (!token) {
+        content.innerHTML = '<p class="error">This link is missing a claim code.</p>';
+        return;
+      }
+
+      try {
+        const { ok, status, body } = await resolveClaim(token);
+        if (!ok) {
+          if (status === 404) {
+            content.innerHTML = '<p class="error">We couldn’t find media for this link.</p>';
+          } else if (status === 410) {
+            content.innerHTML = '<p class="error">This link has expired.</p>';
+          } else {
+            content.innerHTML = '<p class="error">Something went wrong loading your media. Please try again shortly.</p>';
+          }
+          return;
+        }
+
+        // A resolved, ready claim is what "claim_viewed" means for funnel
+        // purposes — fired here, fire-and-forget, never blocking rendering.
+        recordEngagement(token, "claim_viewed");
+
+        content.innerHTML = "";
+
+        // Failure to render the social card (missing/malformed data) must
+        // never take down the media section below it — see the try/catch.
+        try {
+          if (body.socialCTA) {
+            content.appendChild(renderSocialCard(body.socialCTA, token));
+          }
+        } catch (err) {
+          // Social CTA rendering must never block access to media.
+        }
+
+        const mediaSection = document.createElement("div");
+        mediaSection.id = "media-section";
+        for (const item of body.media || []) {
+          mediaSection.appendChild(renderMedia(item));
+          mediaSection.appendChild(renderDownloadButton(item, token, body.socialCTA));
+        }
+        content.appendChild(mediaSection);
+
+        if (body.expiresAt) {
+          const expirationEl = document.createElement("div");
+          expirationEl.className = "expiration";
+          expirationEl.textContent = `Available until ${new Date(body.expiresAt).toLocaleString()}`;
+          content.appendChild(expirationEl);
+        }
+
+        if (body.socialCTA) {
+          const tagHint = document.createElement("div");
+          tagHint.className = "tag-hint";
+          tagHint.textContent = `Tag ${body.socialCTA.displayName} when you post.`;
+          content.appendChild(tagHint);
+        }
+      } catch (err) {
+        content.innerHTML = '<p class="error">Something went wrong loading your media. Please try again shortly.</p>';
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>
