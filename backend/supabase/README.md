@@ -63,6 +63,12 @@ device credential so the publishable key alone can never trigger an upload:
   again (claim token only, `--no-verify-jwt`). Validates and stores
   optional post-download feedback. Never reads, writes, or returns triage
   data. Validation lives in `functions/_shared/feedback.ts`.
+- `functions/event-analytics/` — **service-to-service read-only**. Called by the
+  Pacific Rising Ops business agent. Authenticated via `REPORTING_AGENT_API_KEY`
+  (`Authorization: Bearer <REPORTING_AGENT_API_KEY>`, deployed with `--no-verify-jwt`).
+  Provides read-only queries for session counts, claim views, downloads, social CTA
+  clicks (Instagram, TikTok, Google Review), feedback summaries, delivery health,
+  and event comparisons.
 
 ## Social Claim Funnel v1 — what this does and does NOT track
 
@@ -579,6 +585,250 @@ Once steps 1–9 are done:
     `status = 'new'`. Sending again from the same link shows "Feedback
     already received. Thank you." and adds no row. With `GOOGLE_REVIEW_URL` set, confirm the
     Google button shows for both a 1-star and a 5-star rating.
+
+## Pacific Rising Ops — Event Analytics API
+
+The `event-analytics` Edge Function provides a secure, read-only analytics layer for the Pacific Rising Ops business agent. It allows server-to-service querying of session metrics, claim funnel performance, social clicks, feedback aggregates, and delivery health without exposing guest PII, claim tokens, or infrastructure secrets.
+
+### Authentication & Security Model
+
+- **Service-to-Service Secret**: Configured in Supabase Edge Functions via `REPORTING_AGENT_API_KEY`.
+- **Authorization Header**:
+  ```http
+  Authorization: Bearer <REPORTING_AGENT_API_KEY>
+  ```
+- **Deployment**: Deployed with `--no-verify-jwt` because it implements its own constant-time token comparison (`verifyReportingAuth`) against `REPORTING_AGENT_API_KEY`.
+- **Privacy Guarantees**:
+  - Never returns claim tokens, claim token hashes, booth device tokens, or storage object paths.
+  - Never returns guest free-text comments or any PII in aggregate responses.
+  - 100% read-only: performs SELECT queries only, never mutates any row.
+  - Fails closed with 401 Unauthorized if the header is missing, malformed, or invalid.
+
+### Eventual Environment Setup & Deploy (Run manually when ready)
+
+```bash
+# Set secret (do not check real secrets into git):
+supabase secrets set REPORTING_AGENT_API_KEY=YOUR_SECURE_RANDOM_KEY
+
+# Deploy function:
+supabase functions deploy event-analytics --no-verify-jwt
+```
+
+### Supported Operations & Request Contracts
+
+All requests are `POST` to `/functions/v1/event-analytics` with `Content-Type: application/json`.
+
+#### 1. `latest_event`
+Fetches the UUID of the most recently active event in the database.
+
+**Request:**
+```bash
+curl -i -X POST "https://<project-ref>.supabase.co/functions/v1/event-analytics" \
+  -H "Authorization: Bearer <REPORTING_AGENT_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "latest_event"
+  }'
+```
+
+**Example Response (200 OK):**
+```json
+{
+  "operation": "latest_event",
+  "eventId": "11111111-2222-3333-4444-555555555555",
+  "lastActivityAt": "2026-10-17T20:45:00.000Z",
+  "sessionCount": 42
+}
+```
+
+#### 2. `event_summary`
+Returns comprehensive high-level metrics for an event, including sessions, claim views, downloads, social clicks, feedback rating distribution, and delivery status counts.
+
+**Request:**
+```bash
+curl -i -X POST "https://<project-ref>.supabase.co/functions/v1/event-analytics" \
+  -H "Authorization: Bearer <REPORTING_AGENT_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "event_summary",
+    "eventId": "11111111-2222-3333-4444-555555555555"
+  }'
+```
+
+**Example Response (200 OK):**
+```json
+{
+  "operation": "event_summary",
+  "eventId": "11111111-2222-3333-4444-555555555555",
+  "startedAt": "2026-10-17T18:00:00.000Z",
+  "lastActivityAt": "2026-10-17T22:15:00.000Z",
+  "sessions": {
+    "total": 42,
+    "ready": 40,
+    "preparing": 2,
+    "expired": 0
+  },
+  "claims": {
+    "views": 38,
+    "uniqueSessionsViewed": 35
+  },
+  "downloads": {
+    "total": 52,
+    "uniqueSessionsDownloaded": 32
+  },
+  "social": {
+    "instagramClicks": 14,
+    "instagramUniqueSessions": 11,
+    "tiktokClicks": 6,
+    "tiktokUniqueSessions": 5,
+    "googleReviewClicks": 9,
+    "googleReviewUniqueSessions": 8
+  },
+  "feedback": {
+    "submissions": 12,
+    "averageRating": 4.75,
+    "ratings": {
+      "1": 0,
+      "2": 0,
+      "3": 1,
+      "4": 1,
+      "5": 10
+    }
+  },
+  "delivery": {
+    "totalSessions": 42,
+    "readySessions": 40,
+    "unfinalizedSessions": 2,
+    "expiredSessions": 0,
+    "mediaItemsCount": 84
+  }
+}
+```
+
+*Note on funnel transparency:*
+- `googleReviewClicks` records clicks on the Google Review CTA button only; it is never described as completed reviews.
+- `instagramClicks` and `tiktokClicks` record outbound clicks only; they are never described as follows.
+
+#### 3. `feedback_summary`
+Returns private feedback metrics, rating distribution, tag categories, testimonial consent counts, and internal triage status for an event without returning guest comments or identifying details.
+
+**Request:**
+```bash
+curl -i -X POST "https://<project-ref>.supabase.co/functions/v1/event-analytics" \
+  -H "Authorization: Bearer <REPORTING_AGENT_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "feedback_summary",
+    "eventId": "11111111-2222-3333-4444-555555555555"
+  }'
+```
+
+**Example Response (200 OK):**
+```json
+{
+  "operation": "feedback_summary",
+  "eventId": "11111111-2222-3333-4444-555555555555",
+  "submissions": 12,
+  "averageRating": 4.75,
+  "ratings": {
+    "1": 0,
+    "2": 0,
+    "3": 1,
+    "4": 1,
+    "5": 10
+  },
+  "categories": {
+    "photo_quality": 8,
+    "ai_effects": 5,
+    "qr_delivery": 7,
+    "print_experience": 0,
+    "ease_of_use": 9,
+    "something_went_wrong": 1
+  },
+  "consentedTestimonialsCount": 8,
+  "triage": {
+    "total": 12,
+    "new": 10,
+    "triaged": 2,
+    "planned": 0,
+    "implemented": 0,
+    "verified": 0,
+    "actionable": 1
+  }
+}
+```
+
+#### 4. `delivery_health`
+Returns only operational metrics that the current schema can prove (sessions created, ready, preparing/unfinalized, expired, media breakdown, completion rate).
+
+**Request:**
+```bash
+curl -i -X POST "https://<project-ref>.supabase.co/functions/v1/event-analytics" \
+  -H "Authorization: Bearer <REPORTING_AGENT_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "delivery_health",
+    "eventId": "11111111-2222-3333-4444-555555555555"
+  }'
+```
+
+**Example Response (200 OK):**
+```json
+{
+  "operation": "delivery_health",
+  "eventId": "11111111-2222-3333-4444-555555555555",
+  "sessionsCreated": 42,
+  "sessionsReady": 40,
+  "sessionsPreparing": 2,
+  "sessionsExpired": 0,
+  "totalMediaItems": 84,
+  "mediaBreakdown": {
+    "photo": 42,
+    "loopVideo": 42
+  },
+  "completionRate": 0.95,
+  "hasUnfinalizedSessions": true
+}
+```
+
+#### 5. `compare_events`
+Compares metrics between two events and computes deterministic numerical deltas (Event B minus Event A).
+
+**Request:**
+```bash
+curl -i -X POST "https://<project-ref>.supabase.co/functions/v1/event-analytics" \
+  -H "Authorization: Bearer <REPORTING_AGENT_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "compare_events",
+    "eventIdA": "11111111-1111-1111-1111-111111111111",
+    "eventIdB": "22222222-2222-2222-2222-222222222222"
+  }'
+```
+
+**Example Response (200 OK):**
+```json
+{
+  "operation": "compare_events",
+  "eventIdA": "11111111-1111-1111-1111-111111111111",
+  "eventIdB": "22222222-2222-2222-2222-222222222222",
+  "eventA": { "...": "EventSummary shape for Event A" },
+  "eventB": { "...": "EventSummary shape for Event B" },
+  "deltas": {
+    "sessionsTotalDelta": 10,
+    "readySessionsDelta": 8,
+    "claimViewsDelta": 12,
+    "uniqueSessionsViewedDelta": 9,
+    "downloadsDelta": 15,
+    "uniqueSessionsDownloadedDelta": 8,
+    "instagramClicksDelta": 4,
+    "tiktokClicksDelta": 2,
+    "googleReviewClicksDelta": 3,
+    "feedbackSubmissionsDelta": 5,
+    "averageRatingDelta": 0.25
+  }
+}
+```
 
 ## Deliberately not done in this pass
 
